@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Brain } from "lucide-react";
 import { signInWithGoogle } from "@/lib/firebase/auth";
+import { upsertUserProfile } from "@/lib/firebase/firestore";
 import { useAuth } from "@/components/providers/AuthProvider";
 
 export default function LoginPage() {
@@ -16,10 +17,11 @@ export default function LoginPage() {
 
   async function handleGoogleSignIn() {
     try {
-      await signInWithGoogle();
+      const user = await signInWithGoogle();
+      await upsertUserProfile(user);
       router.replace("/dashboard");
     } catch {
-      // silent — user closed popup
+      // silent — user closed popup or cancelled
     }
   }
 
