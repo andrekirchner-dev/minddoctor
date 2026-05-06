@@ -20,6 +20,8 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/components/providers/AuthProvider";
+import { signOut } from "@/lib/firebase/auth";
+import { useRouter } from "next/navigation";
 
 const navItems = [
   { href: "/dashboard",        icon: LayoutDashboard, label: "Dashboard" },
@@ -40,6 +42,12 @@ export function Sidebar() {
   const [expanded, setExpanded] = useState(false);
   const pathname  = usePathname();
   const { isAdmin } = useAuth();
+  const router = useRouter();
+
+  async function handleSignOut() {
+    await signOut();
+    router.replace("/login");
+  }
 
   return (
     <aside
@@ -114,14 +122,25 @@ export function Sidebar() {
             />
           );
         })}
-        <NavItem
-          href="/sair"
-          icon={LogOut}
-          label="Sair"
-          active={false}
-          expanded={expanded}
-          danger
-        />
+        <div className="relative group/nav">
+          <button
+            onClick={handleSignOut}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-150 text-red-300 hover:bg-white/10 hover:text-red-200"
+          >
+            <LogOut size={20} className="shrink-0 transition-transform duration-150 group-hover/nav:scale-110" />
+            <span className={cn(
+              "whitespace-nowrap text-sm font-medium transition-opacity duration-200",
+              expanded ? "opacity-100" : "opacity-0 w-0 overflow-hidden"
+            )}>
+              Sair
+            </span>
+          </button>
+          {!expanded && (
+            <span className="pointer-events-none absolute left-full ml-3 top-1/2 -translate-y-1/2 px-2.5 py-1.5 rounded-lg bg-foreground text-background text-xs font-medium whitespace-nowrap opacity-0 group-hover/nav:opacity-100 transition-opacity duration-150 z-50">
+              Sair
+            </span>
+          )}
+        </div>
       </div>
     </aside>
   );
