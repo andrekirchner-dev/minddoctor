@@ -32,7 +32,7 @@ export default function LoginPage() {
       <div className="w-full max-w-sm">
         {/* Logo */}
         <div className="flex flex-col items-center mb-10">
-          <Image src="/MindDoctor.png" width={96} height={96} alt="MindDoctor" className="rounded-2xl" />
+          <Image src="/MindDoctor.png" width={140} height={140} alt="MindDoctor" />
         </div>
 
         {/* Card */}
