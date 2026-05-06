@@ -2,8 +2,8 @@
 
 import { createContext, useContext, useEffect, useState } from "react";
 import type { User } from "firebase/auth";
-import { onAuthChange, getGoogleRedirectResult } from "@/lib/firebase/auth";
-import { getUserProfile, upsertUserProfile, type UserProfile } from "@/lib/firebase/firestore";
+import { onAuthChange } from "@/lib/firebase/auth";
+import { getUserProfile, type UserProfile } from "@/lib/firebase/firestore";
 
 interface AuthContextValue {
   user: User | null;
@@ -25,33 +25,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    let unsubscribeFn: (() => void) | undefined;
-
-    async function init() {
-      // Processa redirect pendente do Google ANTES de assinar onAuthStateChanged.
-      // Sem isso, onAuthStateChanged dispara com null enquanto o redirect ainda
-      // está sendo resolvido, causando loop login → dashboard → login.
-      try {
-        const redirectUser = await getGoogleRedirectResult();
-        if (redirectUser) await upsertUserProfile(redirectUser);
-      } catch {
-        // sem redirect pendente ou erro ignorável
+    const unsubscribe = onAuthChange(async (u) => {
+      setUser(u);
+      if (u) {
+        const p = await getUserProfile(u.uid);
+        setProfile(p);
+      } else {
+        setProfile(null);
       }
-
-      unsubscribeFn = onAuthChange(async (u) => {
-        setUser(u);
-        if (u) {
-          const p = await getUserProfile(u.uid);
-          setProfile(p);
-        } else {
-          setProfile(null);
-        }
-        setLoading(false);
-      });
-    }
-
-    init();
-    return () => unsubscribeFn?.();
+      setLoading(false);
+    });
+    return unsubscribe;
   }, []);
 
   return (

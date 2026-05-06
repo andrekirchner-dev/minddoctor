@@ -4,12 +4,13 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { signInWithGoogle } from "@/lib/firebase/auth";
+import { upsertUserProfile } from "@/lib/firebase/firestore";
 import { useAuth } from "@/components/providers/AuthProvider";
 
 export default function LoginPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
-  const [error, setError]   = useState<string | null>(null);
+  const [error, setError]     = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
   useEffect(() => {
@@ -20,9 +21,17 @@ export default function LoginPage() {
     try {
       setError(null);
       setPending(true);
-      await signInWithGoogle(); // dispara o redirect — página sai
+      const u = await signInWithGoogle();
+      await upsertUserProfile(u);
+      router.replace("/dashboard");
     } catch (err) {
-      setError((err as { message?: string })?.message ?? "Erro ao iniciar login.");
+      const e = err as { code?: string; message?: string };
+      // popup fechado pelo usuário — não exibe erro
+      if (e.code === "auth/popup-closed-by-user" || e.code === "auth/cancelled-popup-request") {
+        setPending(false);
+        return;
+      }
+      setError(e.message ?? "Erro ao autenticar. Tente novamente.");
       setPending(false);
     }
   }
@@ -32,12 +41,10 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <div className="w-full max-w-sm">
-        {/* Logo */}
         <div className="flex flex-col items-center mb-10">
           <Image src="/MindDoctor.png" width={140} height={140} alt="MindDoctor" />
         </div>
 
-        {/* Card */}
         <div className="bg-card rounded-2xl p-8 border border-border shadow-[0_4px_20px_rgba(74,108,247,0.08)]">
           <h2 className="text-lg font-semibold text-foreground mb-1">Entrar</h2>
           <p className="text-sm text-muted-foreground mb-6">
@@ -56,7 +63,7 @@ export default function LoginPage() {
             className="w-full flex items-center justify-center gap-3 py-3 px-4 rounded-xl border border-border bg-background hover:bg-muted transition-colors text-sm font-medium text-foreground disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <GoogleIcon />
-            {pending ? "Redirecionando..." : "Entrar com Google"}
+            {pending ? "Autenticando..." : "Entrar com Google"}
           </button>
 
           <p className="text-[11px] text-muted-foreground text-center mt-6 leading-relaxed">
