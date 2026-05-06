@@ -10,7 +10,7 @@ import type { User } from "firebase/auth";
 
 export interface UserProfile {
   uid: string;
-  email: string;
+  email: string | null;
   displayName: string | null;
   photoURL: string | null;
   plano: "free" | "pro";
