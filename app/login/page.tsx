@@ -32,11 +32,7 @@ export default function LoginPage() {
       <div className="w-full max-w-sm">
         {/* Logo */}
         <div className="flex flex-col items-center mb-10">
-          <Image src="/MindDoctor.png" width={56} height={56} alt="MindDoctor" className="mb-4 rounded-2xl" />
-          <h1 className="text-2xl font-bold text-foreground">MindDoctor</h1>
-          <p className="text-muted-foreground text-sm mt-1 text-center">
-            O Whitebook da Psiquiatria
-          </p>
+          <Image src="/MindDoctor.png" width={96} height={96} alt="MindDoctor" className="rounded-2xl" />
         </div>
 
         {/* Card */}
