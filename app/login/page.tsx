@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Brain } from "lucide-react";
+import Image from "next/image";
 import { signInWithGoogle } from "@/lib/firebase/auth";
 import { upsertUserProfile } from "@/lib/firebase/firestore";
 import { useAuth } from "@/components/providers/AuthProvider";
@@ -32,10 +32,7 @@ export default function LoginPage() {
       <div className="w-full max-w-sm">
         {/* Logo */}
         <div className="flex flex-col items-center mb-10">
-          <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4"
-            style={{ background: "linear-gradient(135deg, #4A6CF7, #7B5EA7)" }}>
-            <Brain size={28} className="text-white" />
-          </div>
+          <Image src="/MindDoctor.png" width={56} height={56} alt="MindDoctor" className="mb-4 rounded-2xl" />
           <h1 className="text-2xl font-bold text-foreground">MindDoctor</h1>
           <p className="text-muted-foreground text-sm mt-1 text-center">
             O Whitebook da Psiquiatria

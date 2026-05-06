@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -14,7 +15,6 @@ import {
   User,
   Settings,
   LogOut,
-  Brain,
   Menu,
   ShieldCheck,
 } from "lucide-react";
@@ -65,7 +65,7 @@ export function Sidebar() {
           expanded ? "opacity-100" : "opacity-0 pointer-events-none"
         )}
       >
-        <Brain size={22} className="text-white shrink-0" />
+        <Image src="/MindDoctor.png" width={22} height={22} alt="" className="rounded-md shrink-0" />
         <span className="text-white font-bold text-lg tracking-tight whitespace-nowrap">
           MindDoctor
         </span>
