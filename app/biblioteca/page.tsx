@@ -4,6 +4,8 @@ import { AuthGuard } from "@/components/auth/AuthGuard";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { glossario } from "@/lib/data/glossario";
 import { psicoterapias } from "@/lib/data/psicoterapias";
+import { psicopatologia } from "@/lib/data/psicopatologia";
+import { diagnosticos } from "@/lib/data/diagnosticos";
 
 const secoes = [
   {
@@ -23,7 +25,7 @@ const secoes = [
     descricao: "Domínios semiológicos detalhados — fenômenos, exemplos clínicos e pearls para provas.",
     cor: "from-violet-500 to-purple-600",
     badge: "bg-violet-500/10 text-violet-600 border-violet-500/20",
-    contagem: "12 tópicos",
+    contagem: `${psicopatologia.length} tópicos`,
     plano: "free",
   },
   {
@@ -33,7 +35,7 @@ const secoes = [
     descricao: "Critérios DSM-5-TR completos, diferencial, comorbidades e tratamento de primeira linha.",
     cor: "from-blue-600 to-indigo-500",
     badge: "bg-blue-500/10 text-blue-600 border-blue-500/20",
-    contagem: "10 transtornos",
+    contagem: `${diagnosticos.length} transtornos`,
     plano: "free + pro",
   },
   {
