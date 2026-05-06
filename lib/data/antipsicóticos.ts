@@ -1,0 +1,276 @@
+// Fontes: Leucht et al. 2016 (Lancet), Gardner et al. 2010, Stahl's Essential Psychopharmacology 7ª ed.
+
+export type RiscoQTc = "alto" | "moderado" | "baixo";
+export type Classe   = "típico" | "atípico";
+export type Via      = "oral" | "im" | "iv" | "oral/im";
+
+export interface Antipsicótico {
+  id: string;
+  nome: string;
+  nomes_comerciais: string[];
+  classe: Classe;
+  /** Dose desta droga equivalente a 100 mg de Clorpromazina (CPZ) */
+  cpz_eq_mg: number;
+  dose_min_mg: number;
+  dose_max_mg: number;
+  via: Via;
+  meia_vida_h: number | string;
+  qtc: RiscoQTc;
+  sus: boolean;
+  notas?: string;
+}
+
+export const antipsicóticos: Antipsicótico[] = [
+  // ── TÍPICOS ──────────────────────────────────────────────────
+  {
+    id: "clorpromazina",
+    nome: "Clorpromazina",
+    nomes_comerciais: ["Amplictil"],
+    classe: "típico",
+    cpz_eq_mg: 100,
+    dose_min_mg: 25,
+    dose_max_mg: 800,
+    via: "oral/im",
+    meia_vida_h: "8–35h",
+    qtc: "alto",
+    sus: true,
+    notas: "Referência para equivalência (CPZ = 100). Hipotensão ortostática frequente.",
+  },
+  {
+    id: "haloperidol",
+    nome: "Haloperidol",
+    nomes_comerciais: ["Haldol"],
+    classe: "típico",
+    cpz_eq_mg: 2,
+    dose_min_mg: 0.5,
+    dose_max_mg: 20,
+    via: "oral/im",
+    meia_vida_h: "12–36h",
+    qtc: "moderado",
+    sus: true,
+    notas: "Alta potência. Risco de SEP. Preferido em urgências IM.",
+  },
+  {
+    id: "trifluoperazina",
+    nome: "Trifluoperazina",
+    nomes_comerciais: ["Stelazine"],
+    classe: "típico",
+    cpz_eq_mg: 5,
+    dose_min_mg: 2,
+    dose_max_mg: 30,
+    via: "oral",
+    meia_vida_h: "10–20h",
+    qtc: "baixo",
+    sus: true,
+    notas: "Alta potência. Risco de distonia.",
+  },
+  {
+    id: "flufenazina",
+    nome: "Flufenazina",
+    nomes_comerciais: ["Prolixin", "Permitil"],
+    classe: "típico",
+    cpz_eq_mg: 2,
+    dose_min_mg: 1,
+    dose_max_mg: 20,
+    via: "oral/im",
+    meia_vida_h: "14–24h",
+    qtc: "baixo",
+    sus: false,
+    notas: "Disponível em decanoato (depot) para adesão.",
+  },
+  {
+    id: "zuclopentixol",
+    nome: "Zuclopentixol",
+    nomes_comerciais: ["Clopixol"],
+    classe: "típico",
+    cpz_eq_mg: 25,
+    dose_min_mg: 10,
+    dose_max_mg: 150,
+    via: "oral/im",
+    meia_vida_h: "15–25h",
+    qtc: "baixo",
+    sus: false,
+    notas: "Acetato IM (Acuphase): duração 2–3 dias. Útil em agitação grave.",
+  },
+  {
+    id: "pimozida",
+    nome: "Pimozida",
+    nomes_comerciais: ["Orap"],
+    classe: "típico",
+    cpz_eq_mg: 2,
+    dose_min_mg: 1,
+    dose_max_mg: 16,
+    via: "oral",
+    meia_vida_h: "55h",
+    qtc: "alto",
+    sus: false,
+    notas: "Alto risco QTc. Contraindicada com macrolídeos/azólicos.",
+  },
+
+  // ── ATÍPICOS ─────────────────────────────────────────────────
+  {
+    id: "clozapina",
+    nome: "Clozapina",
+    nomes_comerciais: ["Clozaril", "Leponex"],
+    classe: "atípico",
+    cpz_eq_mg: 75,
+    dose_min_mg: 12.5,
+    dose_max_mg: 600,
+    via: "oral",
+    meia_vida_h: "12h",
+    qtc: "baixo",
+    sus: true,
+    notas: "Padrão-ouro para esquizofrenia refratária. Monitorar hemograma (agranulocitose). Titulação obrigatória.",
+  },
+  {
+    id: "risperidona",
+    nome: "Risperidona",
+    nomes_comerciais: ["Risperdal", "Risperidon"],
+    classe: "atípico",
+    cpz_eq_mg: 2,
+    dose_min_mg: 1,
+    dose_max_mg: 16,
+    via: "oral",
+    meia_vida_h: "20h",
+    qtc: "moderado",
+    sus: true,
+    notas: "Hiperprolactinemia dose-dependente. Disponível em LAI (Risperdal Consta).",
+  },
+  {
+    id: "olanzapina",
+    nome: "Olanzapina",
+    nomes_comerciais: ["Zyprexa", "Olanzapina"],
+    classe: "atípico",
+    cpz_eq_mg: 5,
+    dose_min_mg: 2.5,
+    dose_max_mg: 30,
+    via: "oral/im",
+    meia_vida_h: "30h",
+    qtc: "baixo",
+    sus: true,
+    notas: "Ganho de peso e síndrome metabólica frequentes. IM: síndrome sedação-colapso com BZD IV.",
+  },
+  {
+    id: "quetiapina",
+    nome: "Quetiapina",
+    nomes_comerciais: ["Seroquel", "Quetiapina"],
+    classe: "atípico",
+    cpz_eq_mg: 75,
+    dose_min_mg: 25,
+    dose_max_mg: 800,
+    via: "oral",
+    meia_vida_h: "7h",
+    qtc: "moderado",
+    sus: true,
+    notas: "Dose-dependente: baixas doses sedativas/ansiolíticas, altas doses antipsicóticas.",
+  },
+  {
+    id: "aripiprazol",
+    nome: "Aripiprazol",
+    nomes_comerciais: ["Abilify", "Aripiprazol"],
+    classe: "atípico",
+    cpz_eq_mg: 15,
+    dose_min_mg: 5,
+    dose_max_mg: 30,
+    via: "oral/im",
+    meia_vida_h: "75h",
+    qtc: "baixo",
+    sus: false,
+    notas: "Agonista parcial D2. Menor ganho de peso. LAI disponível (Abilify Maintena).",
+  },
+  {
+    id: "ziprasidona",
+    nome: "Ziprasidona",
+    nomes_comerciais: ["Geodon", "Zeldox"],
+    classe: "atípico",
+    cpz_eq_mg: 60,
+    dose_min_mg: 40,
+    dose_max_mg: 160,
+    via: "oral/im",
+    meia_vida_h: "7h",
+    qtc: "alto",
+    sus: false,
+    notas: "Tomar com refeição (absorção aumenta 2×). Monitorar QTc.",
+  },
+  {
+    id: "amisulprida",
+    nome: "Amisulprida",
+    nomes_comerciais: ["Socian", "Solian"],
+    classe: "atípico",
+    cpz_eq_mg: 100,
+    dose_min_mg: 50,
+    dose_max_mg: 1200,
+    via: "oral",
+    meia_vida_h: "12h",
+    qtc: "moderado",
+    sus: false,
+    notas: "Baixas doses para sintomas negativos (50–300mg). Hiperprolactinemia.",
+  },
+  {
+    id: "paliperidona",
+    nome: "Paliperidona",
+    nomes_comerciais: ["Invega", "Xeplion"],
+    classe: "atípico",
+    cpz_eq_mg: 2,
+    dose_min_mg: 3,
+    dose_max_mg: 12,
+    via: "oral",
+    meia_vida_h: "23h",
+    qtc: "moderado",
+    sus: false,
+    notas: "Metabólito ativo da risperidona. Excreção renal — ajustar em IR.",
+  },
+  {
+    id: "lurasidona",
+    nome: "Lurasidona",
+    nomes_comerciais: ["Latuda"],
+    classe: "atípico",
+    cpz_eq_mg: 60,
+    dose_min_mg: 40,
+    dose_max_mg: 160,
+    via: "oral",
+    meia_vida_h: "18–40h",
+    qtc: "baixo",
+    sus: false,
+    notas: "Tomar com refeição (≥350 kcal). Bom perfil metabólico. Indicada no TB depressivo.",
+  },
+  {
+    id: "brexpiprazol",
+    nome: "Brexpiprazol",
+    nomes_comerciais: ["Rexulti"],
+    classe: "atípico",
+    cpz_eq_mg: 4,
+    dose_min_mg: 0.5,
+    dose_max_mg: 4,
+    via: "oral",
+    meia_vida_h: "91h",
+    qtc: "baixo",
+    sus: false,
+    notas: "Agonista parcial D2. Similar ao aripiprazol. Adjuvante em depressão.",
+  },
+  {
+    id: "cariprazina",
+    nome: "Cariprazina",
+    nomes_comerciais: ["Vraylar", "Reagila"],
+    classe: "atípico",
+    cpz_eq_mg: 1.5,
+    dose_min_mg: 1.5,
+    dose_max_mg: 6,
+    via: "oral",
+    meia_vida_h: "2–5 dias",
+    qtc: "baixo",
+    sus: false,
+    notas: "Preferencial em sintomas negativos e TB depressivo. Metabólito com meia-vida de semanas.",
+  },
+];
+
+export function cpzEquivalente(droga: Antipsicótico, dose: number): number {
+  return (dose / droga.cpz_eq_mg) * 100;
+}
+
+export function doseEquivalente(
+  cpzTotal: number,
+  drogaAlvo: Antipsicótico
+): number {
+  return (cpzTotal / 100) * drogaAlvo.cpz_eq_mg;
+}
