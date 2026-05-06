@@ -3,44 +3,26 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { signInWithGoogle, getGoogleRedirectResult } from "@/lib/firebase/auth";
-import { upsertUserProfile } from "@/lib/firebase/firestore";
+import { signInWithGoogle } from "@/lib/firebase/auth";
 import { useAuth } from "@/components/providers/AuthProvider";
 
 export default function LoginPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
-  const [error, setError]       = useState<string | null>(null);
-  const [pending, setPending]   = useState(false);
+  const [error, setError]   = useState<string | null>(null);
+  const [pending, setPending] = useState(false);
 
-  // Redireciona se já autenticado
   useEffect(() => {
     if (!loading && user) router.replace("/dashboard");
   }, [user, loading, router]);
-
-  // Captura o resultado do redirect do Google ao voltar
-  useEffect(() => {
-    getGoogleRedirectResult()
-      .then(async (u) => {
-        if (u) {
-          await upsertUserProfile(u);
-          router.replace("/dashboard");
-        }
-      })
-      .catch((err) => {
-        const msg = (err as { message?: string })?.message ?? "Erro ao autenticar.";
-        setError(msg);
-      });
-  }, [router]);
 
   async function handleGoogleSignIn() {
     try {
       setError(null);
       setPending(true);
-      await signInWithGoogle(); // dispara o redirect — página sai daqui
+      await signInWithGoogle(); // dispara o redirect — página sai
     } catch (err) {
-      const msg = (err as { message?: string })?.message ?? "Erro ao iniciar login.";
-      setError(msg);
+      setError((err as { message?: string })?.message ?? "Erro ao iniciar login.");
       setPending(false);
     }
   }
