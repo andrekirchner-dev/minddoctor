@@ -16,8 +16,10 @@ import {
   LogOut,
   Brain,
   Menu,
+  ShieldCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/components/providers/AuthProvider";
 
 const navItems = [
   { href: "/dashboard",        icon: LayoutDashboard, label: "Dashboard" },
@@ -36,7 +38,8 @@ const bottomItems = [
 
 export function Sidebar() {
   const [expanded, setExpanded] = useState(false);
-  const pathname = usePathname();
+  const pathname  = usePathname();
+  const { isAdmin } = useAuth();
 
   return (
     <aside
@@ -64,7 +67,7 @@ export function Sidebar() {
       >
         <Brain size={22} className="text-white shrink-0" />
         <span className="text-white font-bold text-lg tracking-tight whitespace-nowrap">
-          PsychRes
+          MindDoctor
         </span>
       </div>
 
@@ -88,6 +91,16 @@ export function Sidebar() {
       {/* Bottom items */}
       <div className="flex flex-col gap-1 px-2 pb-4">
         <div className="h-px bg-white/10 my-2 mx-1" />
+        {isAdmin && (
+          <NavItem
+            href="/admin"
+            icon={ShieldCheck}
+            label="Admin"
+            active={pathname === "/admin" || pathname.startsWith("/admin/")}
+            expanded={expanded}
+            admin
+          />
+        )}
         {bottomItems.map(({ href, icon: Icon, label }) => {
           const active = pathname === href;
           return (
@@ -121,9 +134,10 @@ interface NavItemProps {
   active: boolean;
   expanded: boolean;
   danger?: boolean;
+  admin?: boolean;
 }
 
-function NavItem({ href, icon: Icon, label, active, expanded, danger }: NavItemProps) {
+function NavItem({ href, icon: Icon, label, active, expanded, danger, admin }: NavItemProps) {
   return (
     <div className="relative group/nav">
       <Link
@@ -135,6 +149,8 @@ function NavItem({ href, icon: Icon, label, active, expanded, danger }: NavItemP
             ? "bg-white text-[#4A6CF7] dark:bg-[#4A6CF7] dark:text-white font-semibold"
             : danger
             ? "text-red-300 hover:bg-white/10 hover:text-red-200"
+            : admin
+            ? "text-amber-300 hover:bg-white/10 hover:text-amber-200"
             : "text-white/75 hover:bg-white/10 hover:text-white"
         )}
       >

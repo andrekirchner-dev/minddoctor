@@ -11,7 +11,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "PsychRes — O Whitebook da Psiquiatria",
+  title: "MindDoctor — O Whitebook da Psiquiatria",
   description: "Suporte clínico e educacional para residentes em psiquiatria",
 };
 

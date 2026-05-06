@@ -36,7 +36,7 @@ export default function LoginPage() {
             style={{ background: "linear-gradient(135deg, #4A6CF7, #7B5EA7)" }}>
             <Brain size={28} className="text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-foreground">PsychRes</h1>
+          <h1 className="text-2xl font-bold text-foreground">MindDoctor</h1>
           <p className="text-muted-foreground text-sm mt-1 text-center">
             O Whitebook da Psiquiatria
           </p>
