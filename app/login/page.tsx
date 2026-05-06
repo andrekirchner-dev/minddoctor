@@ -1,27 +1,47 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { signInWithGoogle } from "@/lib/firebase/auth";
+import { signInWithGoogle, getGoogleRedirectResult } from "@/lib/firebase/auth";
 import { upsertUserProfile } from "@/lib/firebase/firestore";
 import { useAuth } from "@/components/providers/AuthProvider";
 
 export default function LoginPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
+  const [error, setError]       = useState<string | null>(null);
+  const [pending, setPending]   = useState(false);
 
+  // Redireciona se já autenticado
   useEffect(() => {
     if (!loading && user) router.replace("/dashboard");
   }, [user, loading, router]);
 
+  // Captura o resultado do redirect do Google ao voltar
+  useEffect(() => {
+    getGoogleRedirectResult()
+      .then(async (u) => {
+        if (u) {
+          await upsertUserProfile(u);
+          router.replace("/dashboard");
+        }
+      })
+      .catch((err) => {
+        const msg = (err as { message?: string })?.message ?? "Erro ao autenticar.";
+        setError(msg);
+      });
+  }, [router]);
+
   async function handleGoogleSignIn() {
     try {
-      const user = await signInWithGoogle();
-      await upsertUserProfile(user);
-      router.replace("/dashboard");
-    } catch {
-      // silent — user closed popup or cancelled
+      setError(null);
+      setPending(true);
+      await signInWithGoogle(); // dispara o redirect — página sai daqui
+    } catch (err) {
+      const msg = (err as { message?: string })?.message ?? "Erro ao iniciar login.";
+      setError(msg);
+      setPending(false);
     }
   }
 
@@ -42,12 +62,19 @@ export default function LoginPage() {
             Acesse com sua conta Google para continuar.
           </p>
 
+          {error && (
+            <div className="mb-4 px-4 py-3 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-xs leading-relaxed">
+              {error}
+            </div>
+          )}
+
           <button
             onClick={handleGoogleSignIn}
-            className="w-full flex items-center justify-center gap-3 py-3 px-4 rounded-xl border border-border bg-background hover:bg-muted transition-colors text-sm font-medium text-foreground"
+            disabled={pending}
+            className="w-full flex items-center justify-center gap-3 py-3 px-4 rounded-xl border border-border bg-background hover:bg-muted transition-colors text-sm font-medium text-foreground disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <GoogleIcon />
-            Entrar com Google
+            {pending ? "Redirecionando..." : "Entrar com Google"}
           </button>
 
           <p className="text-[11px] text-muted-foreground text-center mt-6 leading-relaxed">
