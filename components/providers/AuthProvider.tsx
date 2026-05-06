@@ -28,8 +28,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const unsubscribe = onAuthChange(async (u) => {
       setUser(u);
       if (u) {
-        const p = await getUserProfile(u.uid);
-        setProfile(p);
+        try {
+          const p = await getUserProfile(u.uid);
+          setProfile(p);
+        } catch {
+          setProfile(null);
+        }
       } else {
         setProfile(null);
       }
