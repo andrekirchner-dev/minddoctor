@@ -1,6 +1,3 @@
-"use client";
-
-import { use } from "react";
 import { ArrowLeft, Lightbulb, BookOpen, Microscope } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -50,8 +47,8 @@ function renderConteudo(texto: string) {
   });
 }
 
-export default function PsicopatologiaDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params);
+export default async function PsicopatologiaDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const entrada = psicopatologia.find((e) => e.id === id);
 
   if (!entrada) notFound();
@@ -130,9 +127,7 @@ export default function PsicopatologiaDetailPage({ params }: { params: Promise<{
           <div className="bg-card border border-border rounded-2xl overflow-hidden">
             <div className="px-5 py-3 border-b border-border flex items-center gap-2">
               <Lightbulb size={14} className="text-amber-500" />
-              <p className="text-sm font-bold text-foreground">
-                Pearls Clínicas
-              </p>
+              <p className="text-sm font-bold text-foreground">Pearls Clínicas</p>
             </div>
             <ul className="px-5 py-4 space-y-3">
               {entrada.pearls.map((pearl, i) => (

@@ -25,19 +25,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthChange(async (u) => {
+    const unsubscribe = onAuthChange((u) => {
       setUser(u);
+      setLoading(false); // unblock immediately — profile loads in background
+
       if (u) {
-        try {
-          const p = await getUserProfile(u.uid);
-          setProfile(p);
-        } catch {
-          setProfile(null);
-        }
+        getUserProfile(u.uid)
+          .then(setProfile)
+          .catch(() => setProfile(null));
       } else {
         setProfile(null);
       }
-      setLoading(false);
     });
     return unsubscribe;
   }, []);

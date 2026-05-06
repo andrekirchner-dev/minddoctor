@@ -1,6 +1,3 @@
-"use client";
-
-import { use } from "react";
 import { ArrowLeft, CheckCircle, AlertTriangle, Info, Pill, HeartHandshake } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -23,8 +20,8 @@ const areaCor: Record<string, string> = {
   substancias:         "bg-red-500/10 text-red-600 border-red-500/20",
 };
 
-export default function DiagnosticoDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params);
+export default async function DiagnosticoDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
 
   const d = diagnosticos.find(
     (x) => toSlug(x.sigla ?? "") === id || toSlug(x.codigo.split(" ")[0]) === id
