@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BrainCircuit, MessageSquare, Stethoscope, FileText, ChevronRight, AlertTriangle, Shield } from "lucide-react";
+import { Brain, MessageSquare, Stethoscope, FileText, ChevronRight, AlertTriangle, Shield } from "lucide-react";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 
@@ -44,7 +44,7 @@ export default function IAPage() {
               className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
               style={{ background: "linear-gradient(135deg, #7C3AED, #4A6CF7)" }}
             >
-              <BrainCircuit size={20} className="text-white" />
+              <Brain size={20} className="text-white" />
             </div>
             <div>
               <h1 className="text-xl font-bold text-foreground">IA Clínica</h1>

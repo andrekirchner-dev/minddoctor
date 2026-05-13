@@ -3,7 +3,7 @@
 import { useRef, useEffect, useState } from "react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, isTextUIPart } from "ai";
-import { ArrowLeft, Send, BrainCircuit, Loader2, AlertTriangle, RotateCcw } from "lucide-react";
+import { ArrowLeft, Send, Brain, Loader2, AlertTriangle, RotateCcw } from "lucide-react";
 import Link from "next/link";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
@@ -68,7 +68,7 @@ export default function ChatIAPage() {
             </Link>
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-gradient-to-br from-violet-500 to-purple-600">
-                <BrainCircuit size={16} className="text-white" />
+                <Brain size={16} className="text-white" />
               </div>
               <div>
                 <p className="text-sm font-bold text-foreground">Chat Clínico</p>
@@ -83,7 +83,7 @@ export default function ChatIAPage() {
               <div className="space-y-4 pt-4">
                 <div className="text-center space-y-2">
                   <div className="w-12 h-12 mx-auto rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">
-                    <BrainCircuit size={22} className="text-white" />
+                    <Brain size={22} className="text-white" />
                   </div>
                   <p className="text-sm font-semibold text-foreground">Como posso ajudar?</p>
                   <p className="text-xs text-muted-foreground">Tire dúvidas de farmacologia, diagnóstico e condutas em psiquiatria</p>

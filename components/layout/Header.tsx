@@ -2,6 +2,7 @@
 
 import { useTheme } from "next-themes";
 import { Search, Sun, Moon, Bell, Settings } from "lucide-react";
+import Link from "next/link";
 import { cn } from "@/lib/utils";
 
 export function Header() {
@@ -31,16 +32,24 @@ export function Header() {
 
       {/* Actions */}
       <div className="flex items-center gap-2">
-        {/* Notifications */}
-        <button className="relative flex items-center justify-center w-10 h-10 rounded-xl bg-card border border-border text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors">
+        {/* Notifications → settings */}
+        <Link
+          href="/settings"
+          className="relative flex items-center justify-center w-10 h-10 rounded-xl bg-card border border-border text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors"
+          aria-label="Notificações"
+        >
           <Bell size={18} />
           <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-[#D62828]" />
-        </button>
+        </Link>
 
         {/* Settings */}
-        <button className="flex items-center justify-center w-10 h-10 rounded-xl bg-card border border-border text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors">
+        <Link
+          href="/settings"
+          className="flex items-center justify-center w-10 h-10 rounded-xl bg-card border border-border text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors"
+          aria-label="Configurações"
+        >
           <Settings size={18} />
-        </button>
+        </Link>
 
         {/* Theme toggle */}
         <button

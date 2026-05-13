@@ -12,7 +12,7 @@ import {
   BookOpen,
   Layers,
   GraduationCap,
-  BrainCircuit,
+  Brain,
   User,
   Settings,
   LogOut,
@@ -32,7 +32,7 @@ const navItems = [
   { href: "/biblioteca",       icon: BookOpen,         label: "Biblioteca" },
   { href: "/modulos",          icon: Layers,           label: "Módulos" },
   { href: "/estudos",          icon: GraduationCap,    label: "Estudos" },
-  { href: "/ia",               icon: BrainCircuit,     label: "IA Clínica" },
+  { href: "/ia",               icon: Brain,            label: "IA Clínica" },
 ];
 
 const bottomItems = [
