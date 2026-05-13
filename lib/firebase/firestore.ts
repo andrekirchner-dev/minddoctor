@@ -12,6 +12,12 @@ import type { User } from "firebase/auth";
 
 const ADMIN_EMAILS = ["kirchner.andre@gmail.com"];
 
+export interface NotificationPrefs {
+  flashcardsVencidos: boolean;
+  lembreteEstudo: boolean;
+  atualizacoesConteudo: boolean;
+}
+
 export interface UserProfile {
   uid: string;
   email: string | null;
@@ -21,6 +27,7 @@ export interface UserProfile {
   role: "admin" | "user";
   moduloAtivo: "adulto" | "infancia" | "forense" | "psicogeriatria" | "interconsulta";
   crm?: string;
+  notificacoes?: NotificationPrefs;
   createdAt: DocumentData;
   updatedAt: DocumentData;
 }
@@ -65,4 +72,18 @@ export async function updateUserRole(uid: string, role: "admin" | "user"): Promi
 
 export async function updateUserPlan(uid: string, plano: "free" | "pro"): Promise<void> {
   await setDoc(doc(db, "usuarios", uid), { plano, updatedAt: serverTimestamp() }, { merge: true });
+}
+
+export async function updateUserProfileData(
+  uid: string,
+  data: Partial<Pick<UserProfile, "displayName" | "crm" | "moduloAtivo">>
+): Promise<void> {
+  await setDoc(doc(db, "usuarios", uid), { ...data, updatedAt: serverTimestamp() }, { merge: true });
+}
+
+export async function updateNotificationPrefs(
+  uid: string,
+  prefs: NotificationPrefs
+): Promise<void> {
+  await setDoc(doc(db, "usuarios", uid), { notificacoes: prefs, updatedAt: serverTimestamp() }, { merge: true });
 }
