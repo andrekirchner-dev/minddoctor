@@ -13,6 +13,7 @@ import {
   Layers,
   GraduationCap,
   Brain,
+  Stethoscope,
   User,
   Settings,
   LogOut,
@@ -33,6 +34,7 @@ const navItems = [
   { href: "/modulos",          icon: Layers,           label: "Módulos" },
   { href: "/estudos",          icon: GraduationCap,    label: "Estudos" },
   { href: "/ia",               icon: Brain,            label: "IA Clínica" },
+  { href: "/consulta",         icon: Stethoscope,      label: "Consulta" },
 ];
 
 const bottomItems = [

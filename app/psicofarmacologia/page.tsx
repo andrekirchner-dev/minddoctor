@@ -1,18 +1,20 @@
 "use client";
 
 import { useState } from "react";
-import { Pill, ArrowLeftRight, Syringe, Activity } from "lucide-react";
+import { Pill, ArrowLeftRight, Syringe, Activity, Library } from "lucide-react";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { EquivalenciaCalc } from "@/components/psicofarmacologia/EquivalenciaCalc";
 import { DoseCalc } from "@/components/psicofarmacologia/DoseCalc";
 import { QtcChecker } from "@/components/psicofarmacologia/QtcChecker";
+import { BibliotecaFarmacos } from "@/components/psicofarmacologia/BibliotecaFarmacos";
 import { cn } from "@/lib/utils";
 
 const tabs = [
   { id: "equivalencia", label: "Equivalência",    icon: ArrowLeftRight, desc: "Conversão entre antipsicóticos (CPZ)" },
   { id: "dose",         label: "Calculadora Dose", icon: Syringe,        desc: "Faixa terapêutica por medicamento" },
   { id: "qtc",          label: "Interação QTc",    icon: Activity,       desc: "Verificador de risco de QTc" },
+  { id: "biblioteca",   label: "Biblioteca",        icon: Library,        desc: "Fármacos psiquiátricos interativa" },
 ] as const;
 
 type Tab = typeof tabs[number]["id"];
@@ -34,12 +36,12 @@ export default function PsicofarmacologiaPage() {
             </div>
             <div>
               <h1 className="text-xl font-bold text-foreground">Central de Psicofarmacologia</h1>
-              <p className="text-xs text-muted-foreground">Calculadoras clínicas baseadas em evidência</p>
+              <p className="text-xs text-muted-foreground">Calculadoras clínicas e biblioteca de fármacos</p>
             </div>
           </div>
 
-          {/* Tab cards */}
-          <div className="grid grid-cols-3 gap-3">
+          {/* Tab cards — 2×2 grid no mobile, 4 cols no desktop */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             {tabs.map((t) => {
               const Icon = t.icon;
               const active = tab === t.id;
@@ -75,10 +77,14 @@ export default function PsicofarmacologiaPage() {
           </div>
 
           {/* Conteúdo da tab */}
-          <div className="bg-card border border-border rounded-2xl p-5 shadow-[0_4px_20px_rgba(74,108,247,0.06)]">
+          <div className={cn(
+            "bg-card border border-border rounded-2xl shadow-[0_4px_20px_rgba(74,108,247,0.06)]",
+            tab === "biblioteca" ? "p-5" : "p-5"
+          )}>
             {tab === "equivalencia" && <EquivalenciaCalc />}
             {tab === "dose"         && <DoseCalc />}
             {tab === "qtc"          && <QtcChecker />}
+            {tab === "biblioteca"   && <BibliotecaFarmacos />}
           </div>
         </div>
       </DashboardLayout>
