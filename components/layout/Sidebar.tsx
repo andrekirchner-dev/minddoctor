@@ -28,14 +28,14 @@ import { useRouter } from "next/navigation";
 
 const navItems = [
   { href: "/dashboard",        icon: LayoutDashboard, label: "Dashboard" },
+  { href: "/ia",               icon: Brain,            label: "IA Clínica" },
+  { href: "/consulta",         icon: Stethoscope,      label: "Consulta" },
   { href: "/psicofarmacologia",icon: Pill,             label: "Psicofarmacologia" },
   { href: "/emergencia",       icon: AlertTriangle,    label: "Emergência" },
   { href: "/escalas",          icon: ClipboardList,    label: "Escalas" },
   { href: "/biblioteca",       icon: BookOpen,         label: "Biblioteca" },
   { href: "/modulos",          icon: Layers,           label: "Módulos" },
   { href: "/estudos",          icon: GraduationCap,    label: "Estudos" },
-  { href: "/ia",               icon: Brain,            label: "IA Clínica" },
-  { href: "/consulta",         icon: Stethoscope,      label: "Consulta" },
 ];
 
 const bottomItems = [
