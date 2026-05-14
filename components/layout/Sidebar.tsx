@@ -14,6 +14,7 @@ import {
   GraduationCap,
   Brain,
   Stethoscope,
+  FolderOpen,
   User,
   Settings,
   LogOut,
@@ -38,8 +39,9 @@ const navItems = [
 ];
 
 const bottomItems = [
-  { href: "/perfil",    icon: User,     label: "Perfil" },
-  { href: "/settings",  icon: Settings, label: "Configurações" },
+  { href: "/casos",    icon: FolderOpen, label: "Casos Clínicos" },
+  { href: "/perfil",   icon: User,       label: "Perfil" },
+  { href: "/settings", icon: Settings,   label: "Configurações" },
 ];
 
 export function Sidebar() {
