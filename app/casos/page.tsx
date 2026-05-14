@@ -115,23 +115,21 @@ export default function CasosPage() {
   const [decrypted, setDecrypted]       = useState<Record<string, { id: string; dn: string; ct: string }>>({});
   const [decrypting, setDecrypting]     = useState(false);
 
-  // ── Init: load casos + derive key ──────────────────────────────────────────
+  // ── Init: load casos + derive key independently ────────────────────────────
   useEffect(() => {
     if (!user) return;
-    Promise.all([
-      getCasos(user.uid),
-      deriveKey(user.uid),
-    ]).then(([data, key]) => {
+    // Show list as soon as Firestore responds — don't wait for PBKDF2
+    getCasos(user.uid).then((data) => {
       setCasos(data);
-      setCryptoKey(key);
       setLoading(false);
     });
+    // Key arrives when it arrives; only needed for lazy decryption
+    deriveKey(user.uid).then(setCryptoKey);
   }, [user]);
 
   const reload = useCallback(async () => {
     if (!user) return;
-    const data = await getCasos(user.uid);
-    setCasos(data);
+    getCasos(user.uid).then(setCasos);
   }, [user]);
 
   // ── Decrypt sensitive fields when opening detail ───────────────────────────
@@ -212,16 +210,27 @@ export default function CasosPage() {
         status:            formData.status,
       };
       if (panelMode === "editar" && editingId) {
-        await updateCaso(editingId, payload);
-        // Invalidate decrypted cache for this case
+        // Optimistic: patch local state immediately
+        setCasos((prev) => prev.map((c) =>
+          c.id === editingId
+            ? { ...c, ...payload, updatedAt: { seconds: Date.now() / 1000, nanoseconds: 0 } as never }
+            : c
+        ));
         setDecrypted((prev) => { const n = { ...prev }; delete n[editingId]; return n; });
+        setPanelMode(null);
+        setFormData(EMPTY_FORM);
+        setEditingId(null);
+        updateCaso(editingId, payload).then(reload);
       } else {
+        // New case: need Firestore ID — close panel then sync
+        setPanelMode(null);
+        setFormData(EMPTY_FORM);
+        setEditingId(null);
         await saveCaso(payload);
+        reload();
       }
-      await reload();
-      setPanelMode(null);
-      setFormData(EMPTY_FORM);
-      setEditingId(null);
+    } catch {
+      // noop — reload will self-correct on next visit
     } finally {
       setSaving(false);
     }
@@ -229,12 +238,13 @@ export default function CasosPage() {
 
   // ── Delete ─────────────────────────────────────────────────────────────────
   const handleDelete = useCallback(async (id: string) => {
-    await deleteCaso(id);
+    // Optimistic: update UI immediately, sync in background
+    setCasos((prev) => prev.filter((c) => c.id !== id));
     setDecrypted((prev) => { const n = { ...prev }; delete n[id]; return n; });
     setDetailId(null);
     setConfirmDelete(null);
-    await reload();
-  }, [reload]);
+    deleteCaso(id);
+  }, []);
 
   // ── Filtered list ──────────────────────────────────────────────────────────
   const filtered = casos.filter((c) => {
