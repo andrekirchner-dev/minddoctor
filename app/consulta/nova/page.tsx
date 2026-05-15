@@ -1,0 +1,1651 @@
+"use client";
+
+import { useState, useCallback } from "react";
+import {
+  ChevronLeft, ChevronRight, Check, Copy, RotateCcw,
+  ChevronDown, ChevronUp, AlertCircle, FileText, ClipboardList,
+  Stethoscope, Brain, Shield, Pill, History, User, MessageSquare,
+  ClipboardCheck, FileOutput, Users, AlertTriangle, BookOpen,
+  Settings2, Zap, Info, Star,
+} from "lucide-react";
+import { AuthGuard } from "@/components/auth/AuthGuard";
+import { DashboardLayout } from "@/components/layout/DashboardLayout";
+import { cn } from "@/lib/utils";
+
+// ─── Types ───────────────────────────────────────────────────────────────────
+
+type Sels = Record<string, string[]>;
+type Fields = Record<string, string>;
+
+interface ConsultaState {
+  tipo: string;
+  ident: Fields;
+  qp: string[];
+  qpLivre: string;
+  hpmaInicio: string[];
+  hpmaCurso: string[];
+  hpmaSintomas: Sels;
+  hpmaLivre: string;
+  antPsi: Sels;
+  antClinico: string[];
+  antFamiliar: string[];
+  antDetalhes: string;
+  substancias: Sels;
+  muc: string;
+  ttoPrevio: string;
+  alergias: string;
+  eem: Sels;
+  eemLivre: string;
+  risco: Sels;
+  nivelRisco: string;
+  diagnosticoPrincipal: string;
+  diagnosticoLivre: string;
+  diferenciais: string[];
+  gravidade: string;
+  especificadores: string[];
+  condutaFarma: string;
+  condutaPsico: string[];
+  condutaExames: string[];
+  condutaEncam: string[];
+  condutaSeguranca: string[];
+  condutaRetorno: string;
+  condutaObs: string;
+  layout: string;
+  prontuarioBase: string;
+  prontuarioConfirmado: boolean;
+  advancedModules: Record<string, boolean>;
+}
+
+const INITIAL: ConsultaState = {
+  tipo: "", ident: {}, qp: [], qpLivre: "", hpmaInicio: [], hpmaCurso: [],
+  hpmaSintomas: {}, hpmaLivre: "", antPsi: {}, antClinico: [], antFamiliar: [],
+  antDetalhes: "", substancias: {}, muc: "", ttoPrevio: "", alergias: "",
+  eem: {}, eemLivre: "", risco: {}, nivelRisco: "", diagnosticoPrincipal: "",
+  diagnosticoLivre: "", diferenciais: [], gravidade: "", especificadores: [],
+  condutaFarma: "", condutaPsico: [], condutaExames: [], condutaEncam: [],
+  condutaSeguranca: [], condutaRetorno: "", condutaObs: "",
+  layout: "estruturado", prontuarioBase: "", prontuarioConfirmado: false,
+  advancedModules: {},
+};
+
+// ─── Steps ────────────────────────────────────────────────────────────────────
+
+const STEPS = [
+  { id: "tipo", label: "Tipo", icon: ClipboardList },
+  { id: "ident", label: "Paciente", icon: User },
+  { id: "qp", label: "QP / HPMA", icon: MessageSquare },
+  { id: "ant", label: "Antecedentes", icon: History },
+  { id: "eem", label: "EEM", icon: Brain },
+  { id: "risco-hd", label: "Risco / Diagnóstico", icon: Shield },
+  { id: "conduta", label: "Conduta", icon: Stethoscope },
+  { id: "prontuario", label: "Prontuário", icon: FileText },
+];
+
+// ─── Clinical Data ────────────────────────────────────────────────────────────
+
+const TIPOS = [
+  { value: "nova-consulta", label: "Nova consulta", desc: "Primeira avaliação do paciente" },
+  { value: "retorno", label: "Retorno ambulatorial", desc: "Consulta de seguimento" },
+  { value: "urgencia", label: "Urgência psiquiátrica", desc: "Atendimento não-programado / PS" },
+  { value: "enfermaria", label: "Evolução de enfermaria", desc: "Registro diário de internação" },
+  { value: "hospital-dia", label: "Hospital Dia", desc: "Acompanhamento em HD" },
+  { value: "inss", label: "Avaliação INSS / Perícia", desc: "Relatório previdenciário" },
+  { value: "avaliacao-risco", label: "Avaliação de risco", desc: "Foco em risco suicida / heteroagressivo" },
+  { value: "ajuste-med", label: "Ajuste medicamentoso", desc: "Revisão farmacológica" },
+];
+
+const QP_CHIPS = [
+  "Tristeza / humor deprimido", "Ansiedade / preocupação excessiva", "Insônia",
+  "Irritabilidade", "Crises de pânico", "Desatenção / dificuldade de concentração",
+  "Alucinações", "Delírios / ideias persecutórias", "Uso de substâncias",
+  "Oscilação de humor", "Agitação / agressividade", "Ideação suicida",
+  "Prejuízo funcional", "Solicitação de relatório / atestado", "Efeitos colaterais",
+  "Sintomas obsessivos / compulsivos", "Queixas cognitivas / memória",
+];
+
+const HPMA_INICIO = [
+  "Início agudo (dias)", "Início subagudo (semanas)", "Início insidioso (meses/anos)",
+  "Primeiro episódio", "Recaída / novo episódio", "Piora de quadro crônico",
+  "Quadro episódico / recorrente",
+];
+
+const HPMA_CURSO = [
+  "Progressivo", "Flutuante", "Remitente-recorrente", "Persistente / crônico",
+  "Associado a gatilho identificável", "Sem gatilho identificável",
+];
+
+const HPMA_DOMINIOS = [
+  { id: "afetivos", label: "Sintomas afetivos", opcoes: ["Humor deprimido", "Anedonia", "Choro fácil", "Desesperança", "Culpa excessiva", "Menos-valia", "Irritabilidade", "Labilidade emocional", "Euforia / expansividade", "Grandiosidade", "Apatia"] },
+  { id: "sono", label: "Sono", opcoes: ["Insônia inicial", "Insônia intermediária", "Despertar precoce", "Hipersonia", "Redução da necessidade de sono", "Sono não reparador", "Inversão do ciclo sono-vigília"] },
+  { id: "apetite", label: "Apetite / peso", opcoes: ["Hiporexia", "Hiperfagia", "Perda ponderal", "Ganho ponderal"] },
+  { id: "ansiedade", label: "Ansiedade", opcoes: ["Preocupação excessiva", "Crises de pânico", "Sintomas autonômicos", "Evitação", "Fobia social", "Agorafobia", "Tensão muscular", "Ruminação"] },
+  { id: "psicose", label: "Sintomas psicóticos", opcoes: ["Alucinações auditivas", "Alucinações visuais", "Delírios persecutórios", "Delírios de referência", "Delírios místicos", "Delírios grandiosos", "Delírios de culpa", "Delírios de ruína", "Desorganização do pensamento", "Comportamento bizarro"] },
+  { id: "mania", label: "Mania / hipomania", opcoes: ["Aumento de energia", "Redução da necessidade de sono", "Taquipsiquismo", "Pressão de fala", "Impulsividade", "Gastos excessivos", "Hipersexualidade", "Comportamento de risco", "Grandiosidade"] },
+  { id: "ocd", label: "Obsessões / compulsões", opcoes: ["Pensamentos intrusivos", "Rituais de checagem", "Rituais de limpeza", "Simetria / ordenação", "Compulsões mentais", "Evitação obsessiva", "Sofrimento egodistônico"] },
+  { id: "tdah", label: "Atenção / funções executivas", opcoes: ["Desatenção", "Desorganização", "Procrastinação", "Impulsividade", "Inquietação / hiperatividade", "Dificuldade de planejamento", "Prejuízo acadêmico / laboral"] },
+  { id: "funcionalidade", label: "Funcionalidade", opcoes: ["Prejuízo laboral", "Prejuízo acadêmico", "Prejuízo social", "Prejuízo familiar", "Prejuízo no autocuidado", "Afastamento do trabalho", "Isolamento social"] },
+];
+
+const ANT_PSI_DIAGS = [
+  "Transtorno depressivo", "Transtorno afetivo bipolar", "Esquizofrenia", "Transtorno esquizoafetivo",
+  "Transtorno de ansiedade", "Transtorno do pânico", "TOC", "TEPT", "TDAH", "TEA",
+  "Transtorno alimentar", "Dependência química", "Transtorno de personalidade",
+  "Transtorno neurocognitivo / demência", "Transtorno do sono",
+];
+
+const ANT_CLINICOS = [
+  "HAS", "DM tipo 2", "Dislipidemia", "Obesidade", "Epilepsia", "TCE prévio",
+  "Hipotireoidismo", "Hipertireoidismo", "Cardiopatia", "Hepatopatia", "Nefropatia",
+  "Gestação atual", "Puerpério recente", "HIV/AIDS", "Neoplasia",
+];
+
+const ANT_FAMILIARES = [
+  "Depressão", "Transtorno bipolar", "Esquizofrenia / psicose", "Suicídio consumado",
+  "Tentativa de suicídio", "Dependência química", "Transtorno de ansiedade",
+  "TDAH", "Demência", "Internação psiquiátrica", "Transtorno de personalidade",
+];
+
+const SUBSTANCIAS = [
+  { id: "alcool", label: "Álcool" }, { id: "tabaco", label: "Tabaco" },
+  { id: "cannabis", label: "Cannabis" }, { id: "cocaina", label: "Cocaína" },
+  { id: "crack", label: "Crack" }, { id: "anfetaminas", label: "Anfetaminas" },
+  { id: "bzd", label: "Benzodiazepínicos (abuso)" }, { id: "opioides", label: "Opioides" },
+  { id: "alucinogenos", label: "Alucinógenos" },
+];
+
+const EEM_DOMINIOS = [
+  { id: "aparencia", label: "Aparência geral", normal: "Bom estado geral, higiene preservada, vestes adequadas ao contexto, aparência compatível com a idade.", opcoes: ["Higiene prejudicada", "Descuido pessoal", "Aparência emagrecida", "Vestes inadequadas", "Vestes extravagantes", "Odor etílico", "Sinais de intoxicação", "Aparência bizarra", "Sinais de automutilação"] },
+  { id: "atitude", label: "Atitude", normal: "Atitude colaborativa, contato interpessoal adequado e boa responsividade à entrevista.", opcoes: ["Hostil", "Desconfiado/a", "Evasivo/a", "Pueril", "Negativista", "Hipervigilante", "Pouco colaborativo/a", "Desinibido/a"] },
+  { id: "consciencia", label: "Consciência", normal: "Vigil, lúcido/a e responsivo/a ao ambiente.", opcoes: ["Sonolento/a", "Torpor", "Obnubilação", "Confusão mental", "Delirium (suspeita)", "Rebaixamento do nível de consciência"] },
+  { id: "orientacao", label: "Orientação", normal: "Orientado/a globalmente em tempo, espaço, pessoa e situação.", opcoes: ["Desorientação temporal", "Desorientação espacial", "Desorientação autopsíquica", "Desorientação alopsíquica"] },
+  { id: "atencao", label: "Atenção", normal: "Atenção espontânea e voluntária preservadas durante a entrevista.", opcoes: ["Hipoprosexia", "Distraibilidade", "Dificuldade de concentração", "Fatigabilidade atencional", "Atenção flutuante"] },
+  { id: "memoria", label: "Memória", normal: "Memória imediata, recente e remota aparentemente preservadas à entrevista.", opcoes: ["Hipomnésia", "Amnésia anterógrada", "Amnésia retrógrada", "Confabulação", "Queixa subjetiva de memória"] },
+  { id: "sensopercepcao", label: "Sensopercepção", normal: "Nega alterações sensoperceptivas no momento da avaliação.", opcoes: ["Alucinações auditivas", "Alucinações visuais", "Alucinações táteis", "Alucinações olfativas", "Pseudoalucinações", "Ilusões", "Despersonalização", "Desrealização"] },
+  { id: "pens-curso", label: "Pensamento — Curso", normal: "Curso do pensamento organizado, com encadeamento lógico preservado.", opcoes: ["Taquipsiquismo", "Fuga de ideias", "Bradipsiquismo", "Bloqueio", "Perseveração", "Circunstancialidade", "Tangencialidade", "Afrouxamento associativo", "Incoerência"] },
+  { id: "pens-conteudo", label: "Pensamento — Conteúdo", normal: "Não foram evidenciadas ideias delirantes, obsessivas ou supervalorizadas durante a entrevista.", opcoes: ["Delírio persecutório", "Delírio de referência", "Delírio místico", "Delírio grandioso", "Delírio de culpa", "Delírio de ruína", "Ideias obsessivas", "Ideias fóbicas", "Ruminações depressivas", "Ideação suicida", "Ideação heteroagressiva"] },
+  { id: "linguagem", label: "Linguagem", normal: "Linguagem espontânea, fluente, coerente e adequada ao contexto.", opcoes: ["Mutismo", "Hipofonia", "Fala pressionada", "Logorreia", "Ecolalia", "Neologismos", "Pobreza de discurso", "Discurso desorganizado"] },
+  { id: "humor", label: "Humor", normal: "Humor eutímico no momento da avaliação.", opcoes: ["Deprimido", "Ansioso", "Irritável", "Eufórico", "Expansivo", "Disfórico", "Lábil", "Angustiado", "Apático"] },
+  { id: "afeto", label: "Afeto", normal: "Afeto congruente ao conteúdo, com amplitude e modulação preservadas.", opcoes: ["Embotado", "Hipomodulado", "Hiperexpansivo", "Lábil", "Incongruente", "Restrito", "Inadequado"] },
+  { id: "psicomotricidade", label: "Psicomotricidade", normal: "Psicomotricidade preservada, sem agitação ou lentificação evidente.", opcoes: ["Agitação psicomotora", "Lentificação psicomotora", "Inquietação", "Acatisia", "Maneirismos", "Estereotipias", "Catatonia", "Tremores", "Discinesias"] },
+  { id: "vontade", label: "Vontade / pragmatismo", normal: "Vontade, pragmatismo e autocuidado preservados.", opcoes: ["Hipobulia", "Abulia", "Avolição", "Apragmatismo", "Prejuízo do autocuidado", "Isolamento", "Dependência funcional"] },
+  { id: "insight", label: "Juízo crítico / insight", normal: "Juízo crítico preservado e insight adequado em relação ao quadro atual.", opcoes: ["Crítica parcial", "Crítica ausente", "Insight prejudicado", "Negação de morbidade", "Minimização de sintomas", "Baixa adesão ao tratamento"] },
+];
+
+const RISCO_SUICIDA = [
+  "Nega ideação suicida", "Pensamentos de morte passivos", "Ideação suicida passiva (sem plano)",
+  "Ideação suicida com plano", "Intenção de agir", "Meios letais disponíveis",
+  "Tentativa de suicídio recente (< 3 meses)", "Tentativa de suicídio prévia",
+  "Automutilação", "Desesperança intensa", "Impulsividade importante", "Uso de substâncias associado",
+];
+
+const RISCO_HETERO = [
+  "Nega ideação heteroagressiva", "Irritabilidade com risco de agressão",
+  "Ameaças verbais", "Agressão física recente", "Acesso a armas",
+  "Persecutoriedade intensa", "Comportamento intimidador", "Baixa crítica associada",
+];
+
+const FATORES_PROTETORES = [
+  "Vínculo familiar preservado", "Suporte social presente",
+  "Busca voluntária por atendimento", "Supervisão domiciliar possível",
+  "Projetos futuros / motivos para viver", "Crença religiosa / espiritual",
+  "Ausência de plano estruturado", "Boa adesão prévia ao tratamento",
+];
+
+const CIDS = [
+  { code: "F20.0", desc: "Esquizofrenia paranoide" },
+  { code: "F25.0", desc: "Transtorno esquizoafetivo — tipo maníaco" },
+  { code: "F25.1", desc: "Transtorno esquizoafetivo — tipo depressivo" },
+  { code: "F31.0", desc: "TAB — episódio hipomaníaco" },
+  { code: "F31.1", desc: "TAB — episódio maníaco sem sintomas psicóticos" },
+  { code: "F31.2", desc: "TAB — episódio maníaco com sintomas psicóticos" },
+  { code: "F31.3", desc: "TAB — episódio depressivo leve ou moderado" },
+  { code: "F31.4", desc: "TAB — episódio depressivo grave sem sintomas psicóticos" },
+  { code: "F31.5", desc: "TAB — episódio depressivo grave com sintomas psicóticos" },
+  { code: "F32.0", desc: "Episódio depressivo leve" },
+  { code: "F32.1", desc: "Episódio depressivo moderado" },
+  { code: "F32.2", desc: "Episódio depressivo grave sem sintomas psicóticos" },
+  { code: "F32.3", desc: "Episódio depressivo grave com sintomas psicóticos" },
+  { code: "F33.0", desc: "TDR — episódio atual leve" },
+  { code: "F33.1", desc: "TDR — episódio atual moderado" },
+  { code: "F33.2", desc: "TDR — episódio atual grave sem sintomas psicóticos" },
+  { code: "F33.3", desc: "TDR — episódio atual grave com sintomas psicóticos" },
+  { code: "F40.1", desc: "Fobia social" },
+  { code: "F41.0", desc: "Transtorno de pânico" },
+  { code: "F41.1", desc: "Transtorno de ansiedade generalizada" },
+  { code: "F41.2", desc: "Transtorno misto ansioso e depressivo" },
+  { code: "F42", desc: "Transtorno obsessivo-compulsivo" },
+  { code: "F43.1", desc: "Transtorno de estresse pós-traumático" },
+  { code: "F43.2", desc: "Transtorno de ajustamento" },
+  { code: "F60.3", desc: "Transtorno de personalidade emocionalmente instável (borderline)" },
+  { code: "F84.0", desc: "Transtorno do espectro autista" },
+  { code: "F90.0", desc: "TDAH — distúrbio de atividade e atenção" },
+  { code: "F10.2", desc: "Síndrome de dependência de álcool" },
+  { code: "F12.2", desc: "Síndrome de dependência de cannabis" },
+  { code: "F14.2", desc: "Síndrome de dependência de cocaína" },
+];
+
+const GRAVIDADES = [
+  "Leve", "Moderado", "Grave", "Grave com sintomas psicóticos",
+  "Com risco suicida", "Com prejuízo funcional importante",
+  "Em remissão parcial", "Em remissão completa",
+];
+
+const ESPECIFICADORES = [
+  "Com sintomas ansiosos", "Com características mistas", "Com catatonia",
+  "Com sintomas psicóticos congruentes com humor",
+  "Com sintomas psicóticos incongruentes com humor",
+  "Com início no periparto", "Padrão sazonal", "Sem remissão completa entre episódios",
+];
+
+const CONDUTA_PSICO = [
+  "TCC", "DBT", "Terapia focada em trauma (EMDR)", "Psicoterapia interpessoal",
+  "Terapia familiar / sistêmica", "Entrevista motivacional",
+  "Psicoeducação individual", "Psicoeducação familiar",
+];
+
+const CONDUTA_EXAMES = [
+  "Hemograma completo", "Glicemia de jejum", "HbA1c", "Perfil lipídico",
+  "Função renal (creatinina, ureia)", "Função hepática (TGO, TGP, GGT)",
+  "TSH e T4 livre", "Eletrólitos", "Vitamina B12", "Vitamina D",
+  "Beta-HCG", "ECG", "Toxicológico urinário", "Prolactina",
+  "Litemia", "Valproatemia", "Neuroimagem (TC/RM de crânio)",
+];
+
+const CONDUTA_ENCAM = [
+  "Psicoterapia", "Avaliação neuropsicológica", "Neurologia",
+  "CAPS", "Hospital Dia", "Internação psiquiátrica", "Serviço social",
+  "Terapia ocupacional", "Endocrinologia", "Clínica médica", "Avaliação de risco (PS)",
+];
+
+const CONDUTA_SEGURANCA = [
+  "Orientação familiar sobre supervisão", "Restrição de meios letais",
+  "Plano de crise elaborado", "Retorno precoce agendado",
+  "Orientação de PS em caso de piora", "Contato de emergência registrado",
+  "Internação voluntária discutida", "Internação involuntária considerada",
+];
+
+// ─── Advanced Modules ─────────────────────────────────────────────────────────
+
+interface ModuloAvancado {
+  id: string;
+  categoria: string;
+  nome: string;
+  desc: string;
+  tag?: "novo" | "beta";
+}
+
+const MODULOS_AVANCADOS: ModuloAvancado[] = [
+  // Resumo e Alertas
+  { id: "resumo-inteligente", categoria: "Resumo e Alertas", nome: "Resumo Clínico Inteligente", desc: "Caixa de resumo com síndrome predominante, CID, risco e conduta principal — útil para revisão rápida antes do prontuário" },
+  { id: "sinais-alerta", categoria: "Resumo e Alertas", nome: "Módulo de Sinais de Alerta", desc: "Lista automática de alertas clínicos derivados dos dados preenchidos (risco, psicose, funcionalidade)" },
+  { id: "checklist-seguranca", categoria: "Resumo e Alertas", nome: "Checklist de Segurança", desc: "Revisão de itens essenciais antes de confirmar o prontuário: risco, substâncias, mania, conduta de segurança" },
+  { id: "red-flags", categoria: "Resumo e Alertas", nome: "Red Flags Orgânicas", desc: "Alertas para causas secundárias: início tardio, alteração súbita, alucinações visuais, sintomas neurológicos" },
+  { id: "qualidade-prontuario", categoria: "Resumo e Alertas", nome: "Qualidade do Prontuário", desc: "Score de completude com sugestões antes de confirmar: identifica seções vazias ou insuficientes" },
+  { id: "perguntas-faltam", categoria: "Resumo e Alertas", nome: "Perguntas que Faltam", desc: "Checklist dinâmico de itens não investigados baseado no CID selecionado" },
+  { id: "nivel-cuidado", categoria: "Resumo e Alertas", nome: "Nível de Cuidado Recomendado", desc: "Sugere ambulatorial, retorno precoce, CAPS, Hospital Dia ou internação com base em risco e funcionalidade" },
+
+  // Avaliação Funcional e Laboral
+  { id: "prejuizo-funcional", categoria: "Avaliação Funcional e Laboral", nome: "Prejuízo Funcional Detalhado", desc: "Avaliação por áreas: trabalho, autocuidado, sono, relações familiares, relações sociais, alimentação, adesão" },
+  { id: "capacidade-laboral", categoria: "Avaliação Funcional e Laboral", nome: "Módulo de Capacidade Laboral", desc: "Avaliação estruturada de aptidão para o trabalho, principais exigências, limitações e recomendação — útil para relatórios INSS" },
+  { id: "linha-tempo", categoria: "Avaliação Funcional e Laboral", nome: "Linha do Tempo do Episódio", desc: "Estrutura cronológica: início dos sintomas, gatilho, piora, tratamentos, eventos de risco, resposta, consulta atual" },
+
+  // Diagnóstico e Raciocínio
+  { id: "diagnostico-diferencial-guiado", categoria: "Diagnóstico e Raciocínio", nome: "Diagnóstico Diferencial Guiado", desc: "Diferenciais obrigatórios e opcionais por CID: investigado/provável/possível/necessita investigação" },
+  { id: "raciocinio-clinico", categoria: "Diagnóstico e Raciocínio", nome: "Raciocínio Clínico Documentado", desc: "Justificativa clínica da hipótese diagnóstica registrada no prontuário — robustez em discussão e supervisão" },
+  { id: "modo-residente", categoria: "Diagnóstico e Raciocínio", nome: "Modo Residente / Didático", desc: "Explicações educativas sobre diagnóstico e farmacoterapia — útil para supervisão e formação em serviço", tag: "beta" },
+
+  // Conduta Avançada
+  { id: "sintomas-alvo", categoria: "Conduta Avançada", nome: "Sintomas-Alvo para Monitoramento", desc: "Define quais sintomas serão acompanhados no retorno com avaliação comparativa automática" },
+  { id: "evolucao-comparativa", categoria: "Conduta Avançada", nome: "Evolução Comparativa Automática", desc: "Compara automaticamente com a consulta anterior ao gerar o prontuário de retorno" },
+  { id: "efeitos-adversos-med", categoria: "Conduta Avançada", nome: "Efeitos Adversos por Medicação", desc: "Checklist de efeitos adversos esperados baseado nos fármacos registrados na conduta" },
+  { id: "monitoracao-laboratorial", categoria: "Conduta Avançada", nome: "Monitorização Laboratorial Guiada", desc: "Sugere exames obrigatórios conforme fármacos prescritos: lítio, valproato, clozapina, antipsicóticos" },
+  { id: "plano-seguranca-avancado", categoria: "Conduta Avançada", nome: "Plano de Segurança em 3 Versões", desc: "Versões separadas para paciente (linguagem simples), familiar (supervisão e meios) e médico (documental)" },
+  { id: "orientacoes-pos-consulta", categoria: "Conduta Avançada", nome: "Orientações Pós-Consulta por Diagnóstico", desc: "Gera orientações específicas ao CID: o que é, sinais de alerta, quando procurar emergência, papel da família" },
+  { id: "encaminhamento-inteligente", categoria: "Conduta Avançada", nome: "Encaminhamento Inteligente", desc: "Sugere documentos e encaminhamentos com base em risco, diagnóstico e funcionalidade" },
+  { id: "integracao-farmacologia", categoria: "Conduta Avançada", nome: "Integração com Psicofarmacologia", desc: "Link direto para o módulo do fármaco prescrito na Biblioteca de Psicofarmacologia" },
+  { id: "adesao", categoria: "Conduta Avançada", nome: "Módulo de Adesão ao Tratamento", desc: "Registra padrão de adesão atual: aderente, parcial, interrompeu, esquece, familiar supervisiona" },
+  { id: "metas-retorno", categoria: "Conduta Avançada", nome: "Metas até o Próximo Retorno", desc: "Define objetivos específicos para o paciente até a próxima consulta — sono, medicação, atividades, exames" },
+
+  // Documentação e Qualidade
+  { id: "supervisao-preceptoria", categoria: "Documentação e Qualidade", nome: "Supervisão / Preceptoria", desc: "Exporta caso anonimizado com perguntas geradas para discussão clínica e supervisão" },
+  { id: "anonimizacao", categoria: "Documentação e Qualidade", nome: "Anonimização Automática", desc: "Gera versão sem dados identificadores (nome, CPF, endereço) para ensino e discussão" },
+  { id: "consentimentos", categoria: "Documentação e Qualidade", nome: "Módulo de Consentimentos", desc: "Registro de consentimentos: armazenamento de dados, CID no documento, teleatendimento — LGPD" },
+  { id: "sem-cid-documento", categoria: "Documentação e Qualidade", nome: "Controle de CID por Documento", desc: "Define por documento se o CID deve ou não ser incluído — essencial para atestados trabalhistas" },
+  { id: "documento-sensivel", categoria: "Documentação e Qualidade", nome: "Alerta de Documento Sensível", desc: "Aviso antes de gerar relatório com dados sensíveis de saúde mental — revisão e autorização do paciente" },
+  { id: "biblioteca-frases", categoria: "Documentação e Qualidade", nome: "Biblioteca de Frases Editáveis", desc: "Frases semiológicas padronizadas para EEM, avaliação de risco e conduta — editáveis e reutilizáveis" },
+  { id: "templates-cenario", categoria: "Documentação e Qualidade", nome: "Templates por Cenário Clínico", desc: "Modelos pré-preenchidos por diagnóstico: depressão, TAB, psicose, pânico, TDAH, internação, urgência" },
+];
+
+const CATEGORIAS_MODULOS = Array.from(new Set(MODULOS_AVANCADOS.map(m => m.categoria)));
+
+const ADESAO_OPCOES = [
+  "Aderente", "Parcialmente aderente", "Esquece doses com frequência",
+  "Interrompeu por conta própria", "Interrompeu por efeitos adversos",
+  "Uso irregular", "Familiar supervisiona medicação", "Baixa crítica prejudica adesão",
+];
+
+const SINTOMAS_ALVO_OPCOES = [
+  "Humor deprimido", "Anedonia", "Ansiedade", "Insônia", "Apetite / peso",
+  "Ideação suicida", "Sintomas psicóticos", "Energia / fadiga",
+  "Concentração / cognição", "Autocuidado", "Funcionalidade laboral",
+  "Funcionalidade social", "Adesão medicamentosa",
+];
+
+const PREJUIZO_AREAS = [
+  "Trabalho / atividade produtiva", "Estudos / vida acadêmica",
+  "Autocuidado", "Relações familiares", "Relações sociais",
+  "Sono", "Alimentação", "Atividades instrumentais (casa, finanças)",
+  "Risco pessoal", "Adesão ao tratamento",
+];
+
+const NIVEL_PREJUIZO = ["Sem prejuízo relevante", "Leve", "Moderado", "Grave", "Incapacitante"];
+
+// ─── AdvancedConfigPanel — defined outside page to satisfy rerender-no-inline-components ─
+
+interface AdvancedConfigPanelProps {
+  open: boolean;
+  onToggle: () => void;
+  modules: Record<string, boolean>;
+  onToggleModule: (id: string) => void;
+}
+
+function AdvancedConfigPanel({ open, onToggle, modules, onToggleModule }: AdvancedConfigPanelProps) {
+  const total = MODULOS_AVANCADOS.length;
+  const ativos = Object.values(modules).filter(Boolean).length;
+
+  return (
+    <div className="bg-card border border-border rounded-2xl overflow-hidden">
+      <button
+        type="button"
+        onClick={onToggle}
+        className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-muted/20 transition-colors"
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-violet-500/10 border border-violet-500/20 shrink-0">
+            <Settings2 size={14} className="text-violet-600" />
+          </div>
+          <div className="text-left">
+            <p className="text-sm font-bold text-foreground">Configuração Avançada</p>
+            <p className="text-[11px] text-muted-foreground">
+              {ativos === 0 ? "Nenhum módulo ativo" : `${ativos} de ${total} módulos ativos`} — ative os recursos que deseja usar nesta consulta
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          {ativos > 0 && (
+            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-violet-500/10 text-violet-600 border border-violet-500/20">
+              {ativos} ativos
+            </span>
+          )}
+          {open ? <ChevronUp size={14} className="text-muted-foreground" /> : <ChevronDown size={14} className="text-muted-foreground" />}
+        </div>
+      </button>
+
+      {open && (
+        <div className="border-t border-border divide-y divide-border/50">
+          {CATEGORIAS_MODULOS.map((cat) => {
+            const modsNaCategoria = MODULOS_AVANCADOS.filter(m => m.categoria === cat);
+            const ativosNaCategoria = modsNaCategoria.filter(m => modules[m.id]).length;
+            return (
+              <div key={cat} className="px-5 py-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide">{cat}</p>
+                  {ativosNaCategoria > 0 && (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-violet-500/10 text-violet-600 border border-violet-500/20">
+                      {ativosNaCategoria}/{modsNaCategoria.length}
+                    </span>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  {modsNaCategoria.map((mod) => {
+                    const ativo = !!modules[mod.id];
+                    return (
+                      <button
+                        key={mod.id}
+                        type="button"
+                        onClick={() => onToggleModule(mod.id)}
+                        className={cn(
+                          "w-full text-left flex items-start gap-3 p-3 rounded-xl border transition-all",
+                          ativo
+                            ? "border-violet-500/30 bg-violet-500/5"
+                            : "border-border bg-background hover:border-violet-500/20 hover:bg-violet-500/3"
+                        )}
+                      >
+                        {/* Toggle visual */}
+                        <div className={cn(
+                          "mt-0.5 w-9 h-5 rounded-full shrink-0 transition-all relative",
+                          ativo ? "bg-violet-500" : "bg-muted border border-border"
+                        )}>
+                          <div className={cn(
+                            "absolute top-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-all",
+                            ativo ? "left-[18px]" : "left-0.5"
+                          )} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <p className={cn("text-xs font-semibold", ativo ? "text-foreground" : "text-muted-foreground")}>
+                              {mod.nome}
+                            </p>
+                            {mod.tag === "novo" && (
+                              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-green-500/10 text-green-600 border border-green-500/20">NOVO</span>
+                            )}
+                            {mod.tag === "beta" && (
+                              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 border border-amber-500/20">BETA</span>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-muted-foreground leading-relaxed mt-0.5">{mod.desc}</p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+
+          {/* Actions */}
+          <div className="px-5 py-3 flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => MODULOS_AVANCADOS.forEach(m => !modules[m.id] && onToggleModule(m.id))}
+              className="text-[11px] font-medium text-violet-600 hover:text-violet-700 transition-colors"
+            >
+              Ativar todos
+            </button>
+            <span className="text-muted-foreground/40">·</span>
+            <button
+              type="button"
+              onClick={() => MODULOS_AVANCADOS.forEach(m => modules[m.id] && onToggleModule(m.id))}
+              className="text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Desativar todos
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const LAYOUTS = [
+  { id: "estruturado", label: "Estruturado por blocos", desc: "Seções delimitadas: QP / HPMA / TTO Prévio / MUC / EEM / HD / Conduta" },
+  { id: "completo", label: "Prontuário completo", desc: "Texto corrido com todos os campos em prosa clínica" },
+  { id: "objetivo", label: "Evolução objetiva", desc: "Formato breve para retorno ambulatorial" },
+  { id: "enfermaria", label: "Evolução de enfermaria", desc: "Sono / alimentação / comportamento / risco / conduta" },
+  { id: "urgencia", label: "Avaliação de urgência", desc: "Foco em apresentação, risco e conduta imediata" },
+  { id: "inss", label: "Formato INSS / perícia", desc: "Estrutura previdenciária com prejuízo funcional e capacidade laboral" },
+];
+
+// ─── Prontuário Generator ─────────────────────────────────────────────────────
+
+function cidLabel(code: string) {
+  return CIDS.find(c => c.code === code)?.desc || "";
+}
+
+function tipoLabel(tipo: string) {
+  return TIPOS.find(t => t.value === tipo)?.label || tipo;
+}
+
+function buildEEMText(eem: Sels): string {
+  const lines: string[] = [];
+  for (const d of EEM_DOMINIOS) {
+    const sels = eem[d.id] || [];
+    if (sels.includes("_normal")) {
+      lines.push(d.normal);
+    } else if (sels.length > 0) {
+      lines.push(`${d.label}: ${sels.join(", ")}.`);
+    }
+  }
+  return lines.join(" ");
+}
+
+function buildHPMAText(d: ConsultaState): string {
+  const lines: string[] = [];
+  if (d.hpmaInicio.length) lines.push(`Início: ${d.hpmaInicio.join(", ").toLowerCase()}.`);
+  if (d.hpmaCurso.length) lines.push(`Curso: ${d.hpmaCurso.join(", ").toLowerCase()}.`);
+  for (const dom of HPMA_DOMINIOS) {
+    const sels = d.hpmaSintomas[dom.id] || [];
+    if (sels.length) lines.push(`${dom.label}: ${sels.join(", ").toLowerCase()}.`);
+  }
+  if (d.hpmaLivre) lines.push(d.hpmaLivre);
+  return lines.join("\n");
+}
+
+function gerarProntuario(d: ConsultaState): string {
+  const layout = d.layout;
+  const cid = d.diagnosticoPrincipal;
+  const cidDesc = cidLabel(cid);
+  const hoje = new Date().toLocaleDateString("pt-BR");
+
+  // Common builders
+  const identParts = [
+    d.ident.idade ? `${d.ident.idade} anos` : "",
+    d.ident.sexo || "",
+    d.ident.naturalidade ? `natural de ${d.ident.naturalidade}` : "",
+    d.ident.escolaridade || "",
+    d.ident.profissao ? `profissão ${d.ident.profissao}` : "",
+    d.ident.estadoCivil || "",
+    d.ident.comQuemMora ? `reside com ${d.ident.comQuemMora}` : "",
+  ].filter(Boolean).join(", ");
+
+  const identText = `Paciente${d.ident.nome ? ` ${d.ident.nome}` : ""}${identParts ? `, ${identParts}` : ""}. Comparece à avaliação ${d.ident.acompanhante === "sim" ? "acompanhado/a de familiar" : "desacompanhado/a"}. Informações obtidas por meio de ${d.ident.fonteInfo || "relato próprio"}${d.ident.confiabilidade ? `, confiabilidade ${d.ident.confiabilidade}` : ""}.`;
+
+  const qpText = [d.qp.join(", "), d.qpLivre].filter(Boolean).join(" — ");
+  const hpmaText = buildHPMAText(d);
+  const eemText = buildEEMText(d.eem) + (d.eemLivre ? ` ${d.eemLivre}` : "");
+
+  const riscoSuicida = d.risco["suicida"] || [];
+  const riscoHetero = d.risco["hetero"] || [];
+  const protetores = d.risco["protetores"] || [];
+  const riscoText = [
+    riscoSuicida.length ? `Risco suicida: ${riscoSuicida.join(", ")}.` : "",
+    riscoHetero.length ? `Risco heteroagressivo: ${riscoHetero.join(", ")}.` : "",
+    protetores.length ? `Fatores protetores: ${protetores.join(", ")}.` : "",
+    d.nivelRisco ? `Nível de risco: ${d.nivelRisco}.` : "",
+  ].filter(Boolean).join(" ");
+
+  const hdText = [
+    cid ? `CID-10: ${cid}${cidDesc ? ` — ${cidDesc}` : ""}.` : "",
+    d.diagnosticoLivre || "",
+    d.gravidade ? `Gravidade: ${d.gravidade}.` : "",
+    d.especificadores.length ? `Especificadores: ${d.especificadores.join(", ")}.` : "",
+  ].filter(Boolean).join(" ");
+
+  const condutaLines = [
+    d.condutaFarma ? `Farmacoterapia: ${d.condutaFarma}.` : "",
+    d.condutaPsico.length ? `Psicoterapia: ${d.condutaPsico.join(", ")}.` : "",
+    d.condutaExames.length ? `Exames: ${d.condutaExames.join(", ")}.` : "",
+    d.condutaEncam.length ? `Encaminhamentos: ${d.condutaEncam.join(", ")}.` : "",
+    d.condutaSeguranca.length ? `Plano de segurança: ${d.condutaSeguranca.join(", ")}.` : "",
+    d.condutaRetorno ? `Retorno: ${d.condutaRetorno}.` : "",
+    d.condutaObs || "",
+  ].filter(Boolean);
+
+  const antPsiDiags = d.antPsi["diagnosticos"] || [];
+  const antPsiText = [
+    antPsiDiags.length ? `Diagnósticos prévios: ${antPsiDiags.join(", ")}.` : "",
+    d.antPsi["internacoes"]?.includes("sim") ? "Refere internações psiquiátricas prévias." : "",
+    d.antPsi["tentativas"]?.includes("sim") ? "Refere tentativas de suicídio prévias." : "",
+    d.antPsi["automutilacao"]?.includes("sim") ? "Refere automutilação prévia." : "",
+    d.antPsi["psicoterapia"]?.includes("sim") ? "Psicoterapia prévia relatada." : "",
+    d.antDetalhes || "",
+  ].filter(Boolean).join(" ");
+
+  const substUsadas = SUBSTANCIAS.filter(s => d.substancias[s.id]?.includes("usa"));
+  const substText = substUsadas.length
+    ? `Refere uso de: ${substUsadas.map(s => s.label).join(", ")}. Nega uso das demais substâncias investigadas.`
+    : "Nega uso de substâncias psicoativas.";
+
+  // ── Layout: ESTRUTURADO ──────────────────────────────────────────────────────
+  if (layout === "estruturado") {
+    const sections: string[] = [];
+    if (d.tipo) sections.push(`TIPO DE ATENDIMENTO\n${tipoLabel(d.tipo)}`);
+    if (identText) sections.push(`IDENTIFICAÇÃO\n${identText}`);
+    if (qpText) sections.push(`QP\n${qpText}`);
+    if (hpmaText) sections.push(`HPMA\n${hpmaText}`);
+    if (antPsiText) sections.push(`ANTECEDENTES PSIQUIÁTRICOS\n${antPsiText}`);
+    if (d.ttoPrevio) sections.push(`TTO PRÉVIO\n${d.ttoPrevio}`);
+    const mucLines = [d.muc, d.alergias ? `Alergias: ${d.alergias}` : ""].filter(Boolean);
+    if (mucLines.length) sections.push(`MUC\n${mucLines.join("\n")}`);
+    if (d.antClinico.length) sections.push(`ANTECEDENTES PESSOAIS CLÍNICOS\n${d.antClinico.join(", ")}.`);
+    if (d.antFamiliar.length) sections.push(`ANTECEDENTES FAMILIARES\nRefere história familiar de: ${d.antFamiliar.join(", ")}.`);
+    sections.push(`USO DE SUBSTÂNCIAS\n${substText}`);
+    if (eemText) sections.push(`EXAME DO ESTADO MENTAL\n${eemText}`);
+    if (riscoText) sections.push(`AVALIAÇÃO DE RISCO\n${riscoText}`);
+    if (hdText) sections.push(`HIPÓTESE DIAGNÓSTICA\n${hdText}`);
+    if (d.diferenciais.length) sections.push(`DIAGNÓSTICOS DIFERENCIAIS\n${d.diferenciais.join("\n")}`);
+    if (condutaLines.length) sections.push(`CONDUTA\n${condutaLines.join("\n")}`);
+    return sections.join("\n\n");
+  }
+
+  // ── Layout: OBJETIVO ─────────────────────────────────────────────────────────
+  if (layout === "objetivo") {
+    const parts: string[] = [];
+    if (qpText) parts.push(`QP: ${qpText}`);
+    if (hpmaText) parts.push(`HPMA: ${hpmaText.replace(/\n/g, " ")}`);
+    if (d.ttoPrevio) parts.push(`TTO PRÉVIO: ${d.ttoPrevio}`);
+    if (d.muc) parts.push(`MUC: ${d.muc}${d.alergias ? ` | Alergias: ${d.alergias}` : ""}`);
+    if (eemText) parts.push(`EEM: ${eemText}`);
+    if (riscoText) parts.push(`RISCO: ${riscoText}`);
+    if (hdText) parts.push(`HD: ${hdText}`);
+    if (condutaLines.length) parts.push(`CONDUTA: ${condutaLines.join(" | ")}`);
+    return parts.join("\n");
+  }
+
+  // ── Layout: COMPLETO ─────────────────────────────────────────────────────────
+  if (layout === "completo") {
+    const p: string[] = [];
+    p.push(`Paciente${d.ident.nome ? ` ${d.ident.nome}` : ""}${identParts ? `, ${identParts}` : ""}. Comparece à consulta de ${tipoLabel(d.tipo).toLowerCase()}${d.ident.acompanhante === "sim" ? ", acompanhado/a de familiar" : ""}. Informações obtidas por meio de ${d.ident.fonteInfo || "relato próprio"}${d.ident.confiabilidade ? `, confiabilidade ${d.ident.confiabilidade}` : ""}.`);
+    if (qpText) p.push(`Queixa principal: ${qpText}.`);
+    if (hpmaText) p.push(`História da Moléstia Atual:\n${hpmaText}`);
+    const antAll = [antPsiText, d.ttoPrevio ? `Tratamento prévio: ${d.ttoPrevio}` : "", d.muc ? `Medicamentos em uso: ${d.muc}` : "", d.alergias ? `Alergias: ${d.alergias}` : "", d.antClinico.length ? `Antecedentes clínicos: ${d.antClinico.join(", ")}.` : "", d.antFamiliar.length ? `Antecedentes familiares: ${d.antFamiliar.join(", ")}.` : "", substText].filter(Boolean);
+    if (antAll.length) p.push(`Antecedentes e Histórico:\n${antAll.join("\n")}`);
+    if (eemText) p.push(`Exame do Estado Mental:\n${eemText}`);
+    if (riscoText) p.push(`Avaliação de Risco:\n${riscoText}`);
+    if (hdText) p.push(`Hipótese Diagnóstica: ${hdText}`);
+    if (d.diferenciais.length) p.push(`Diagnósticos Diferenciais: ${d.diferenciais.join(", ")}.`);
+    if (condutaLines.length) p.push(`Conduta:\n${condutaLines.join("\n")}`);
+    return p.join("\n\n");
+  }
+
+  // ── Layout: ENFERMARIA ────────────────────────────────────────────────────────
+  if (layout === "enfermaria") {
+    const sono = d.hpmaSintomas["sono"] || [];
+    const p: string[] = [];
+    p.push(`Evolução — ${hoje}`);
+    p.push(`Paciente${d.ident.nome ? ` ${d.ident.nome}` : ""} em internação psiquiátrica por ${cid ? `${cid}${cidDesc ? ` (${cidDesc})` : ""}` : "quadro psiquiátrico"}.`);
+    if (eemText) p.push(`Estado mental: ${eemText}`);
+    if (sono.length) p.push(`Sono: ${sono.join(", ")}.`);
+    if (d.hpmaSintomas["apetite"]?.length) p.push(`Alimentação: ${d.hpmaSintomas["apetite"].join(", ")}.`);
+    if (riscoText) p.push(`Avaliação de risco: ${riscoText}`);
+    if (condutaLines.length) p.push(`Conduta: ${condutaLines.join(" | ")}`);
+    return p.join("\n");
+  }
+
+  // ── Layout: URGÊNCIA ─────────────────────────────────────────────────────────
+  if (layout === "urgencia") {
+    const p: string[] = [];
+    p.push(`AVALIAÇÃO PSIQUIÁTRICA DE URGÊNCIA — ${hoje}`);
+    if (identText) p.push(`Identificação: ${identText}`);
+    if (qpText) p.push(`Motivo do atendimento: ${qpText}`);
+    if (eemText) p.push(`Exame do Estado Mental:\n${eemText}`);
+    if (riscoText) p.push(`Avaliação de Risco (PRIORITÁRIA):\n${riscoText}`);
+    if (hdText) p.push(`Hipótese Diagnóstica: ${hdText}`);
+    if (condutaLines.length) p.push(`Conduta imediata:\n${condutaLines.join("\n")}`);
+    return p.join("\n\n");
+  }
+
+  // ── Layout: INSS ─────────────────────────────────────────────────────────────
+  if (layout === "inss") {
+    const p: string[] = [];
+    p.push(`RELATÓRIO PSIQUIÁTRICO — ${hoje}`);
+    if (identText) p.push(`Identificação: ${identText}`);
+    if (d.ident.profissao) p.push(`Atividade laboral: ${d.ident.profissao}.`);
+    if (cid) p.push(`Diagnóstico: CID-10 ${cid}${cidDesc ? ` — ${cidDesc}` : ""}.`);
+    if (hpmaText) p.push(`Histórico clínico:\n${hpmaText}`);
+    if (eemText) p.push(`Exame do Estado Mental:\n${eemText}`);
+    const funcPrejuizo = d.hpmaSintomas["funcionalidade"] || [];
+    if (funcPrejuizo.length) p.push(`Prejuízo funcional: ${funcPrejuizo.join(", ")}.`);
+    if (condutaLines.length) p.push(`Tratamento instituído:\n${condutaLines.join("\n")}`);
+    p.push(`Prognóstico e recomendações: No momento, pelo quadro clínico descrito e pelo nível de prejuízo funcional, sugere-se manutenção de acompanhamento psiquiátrico regular e reavaliação de capacidade laboral em _____ dias.`);
+    return p.join("\n\n");
+  }
+
+  return "";
+}
+
+// ─── Post-Consultation Document Generators ────────────────────────────────────
+
+function gerarAtestado(d: ConsultaState, comCID: boolean): string {
+  const hoje = new Date().toLocaleDateString("pt-BR");
+  const cid = d.diagnosticoPrincipal;
+  const cidDesc = cidLabel(cid);
+  return [
+    "ATESTADO MÉDICO",
+    "",
+    `Atesto, para os devidos fins, que o/a paciente${d.ident.nome ? ` ${d.ident.nome}` : ""} necessita de afastamento de suas atividades habituais pelo período de _____ dias, a contar desta data${comCID && cid ? `, por motivo de saúde (CID-10: ${cid}${cidDesc ? ` — ${cidDesc}` : ""})` : ""}.`,
+    "",
+    `Data: ${hoje}`,
+    "",
+    "___________________________",
+    "[Nome do Médico]",
+    "CRM: [Número]",
+    "Especialidade: Psiquiatria",
+  ].join("\n");
+}
+
+function gerarRelatorioSimples(d: ConsultaState): string {
+  const hoje = new Date().toLocaleDateString("pt-BR");
+  const cid = d.diagnosticoPrincipal;
+  const cidDesc = cidLabel(cid);
+  const funcPrejuizo = d.hpmaSintomas["funcionalidade"] || [];
+  return [
+    "RELATÓRIO MÉDICO",
+    "",
+    `Declaro, para os devidos fins, que o/a paciente${d.ident.nome ? ` ${d.ident.nome}` : ""}${d.ident.idade ? `, ${d.ident.idade} anos` : ""}, encontra-se em acompanhamento psiquiátrico${cid ? ` por quadro compatível com CID-10 ${cid}${cidDesc ? ` (${cidDesc})` : ""}` : ""}.`,
+    "",
+    `Apresenta ${d.qp.length ? d.qp.join(", ").toLowerCase() : "quadro psiquiátrico em curso"}${funcPrejuizo.length ? `, com repercussão funcional em: ${funcPrejuizo.join(", ").toLowerCase()}` : ""}.`,
+    "",
+    `Encontra-se em tratamento${d.condutaFarma ? ` farmacológico (${d.condutaFarma})` : ""}${d.condutaPsico.length ? ` e ${d.condutaPsico.join(", ")}` : ""}, com acompanhamento regular.`,
+    "",
+    "Recomenda-se manutenção do tratamento e seguimento ambulatorial psiquiátrico.",
+    "",
+    `Data: ${hoje}`,
+    "",
+    "___________________________",
+    "[Nome do Médico]",
+    "CRM: [Número]",
+    "Especialidade: Psiquiatria",
+  ].join("\n");
+}
+
+function gerarRelatorioINSS(d: ConsultaState): string {
+  const hoje = new Date().toLocaleDateString("pt-BR");
+  const cid = d.diagnosticoPrincipal;
+  const cidDesc = cidLabel(cid);
+  const funcPrejuizo = d.hpmaSintomas["funcionalidade"] || [];
+  const eemText = buildEEMText(d.eem);
+  return [
+    "RELATÓRIO PSIQUIÁTRICO PARA FINS PREVIDENCIÁRIOS",
+    "",
+    `Paciente${d.ident.nome ? ` ${d.ident.nome}` : ""}${d.ident.idade ? `, ${d.ident.idade} anos` : ""}${d.ident.profissao ? `, que exerce atividade laboral como ${d.ident.profissao}` : ""}.`,
+    "",
+    `Encontra-se em acompanhamento psiquiátrico por quadro compatível com CID-10: ${cid || "[CID não informado]"}${cidDesc ? ` — ${cidDesc}` : ""}.`,
+    "",
+    `Histórico clínico: ${buildHPMAText(d).replace(/\n/g, " ")}`,
+    "",
+    `Ao exame do estado mental: ${eemText || "não preenchido."}`,
+    "",
+    funcPrejuizo.length ? `Prejuízo funcional: ${funcPrejuizo.join(", ")}.` : "",
+    "",
+    `Tratamento em curso: ${[d.condutaFarma, d.condutaPsico.join(", ")].filter(Boolean).join("; ") || "em definição."}`,
+    "",
+    "No momento, pelo quadro clínico descrito, pelo exame psíquico atual e pelo nível de prejuízo funcional identificado, justifica-se manutenção de afastamento das atividades laborais por _____ dias, com reavaliação periódica.",
+    "",
+    `Data: ${hoje}`,
+    "",
+    "___________________________",
+    "[Nome do Médico]",
+    "CRM: [Número]",
+    "Especialidade: Psiquiatria",
+  ].filter(l => l !== "").join("\n");
+}
+
+function gerarEncaminhamento(d: ConsultaState): string {
+  const hoje = new Date().toLocaleDateString("pt-BR");
+  const cid = d.diagnosticoPrincipal;
+  const cidDesc = cidLabel(cid);
+  return [
+    "ENCAMINHAMENTO",
+    "",
+    `Encaminho o/a paciente${d.ident.nome ? ` ${d.ident.nome}` : ""}${d.ident.idade ? `, ${d.ident.idade} anos` : ""}, para ${d.condutaEncam.length ? d.condutaEncam.join(", ") : "[destino do encaminhamento]"}.`,
+    "",
+    `Diagnóstico / hipótese diagnóstica: ${cid ? `CID-10 ${cid}${cidDesc ? ` — ${cidDesc}` : ""}` : d.diagnosticoLivre || "[a preencher]"}.`,
+    "",
+    `Motivo do encaminhamento: ${d.qp.length ? d.qp.join(", ") : "[a preencher]"}. ${d.condutaObs || ""}`,
+    "",
+    "Solicito avaliação e acompanhamento especializado.",
+    "",
+    `Data: ${hoje}`,
+    "",
+    "___________________________",
+    "[Nome do Médico]",
+    "CRM: [Número]",
+    "Especialidade: Psiquiatria",
+  ].join("\n");
+}
+
+function gerarPlanoCrise(d: ConsultaState): string {
+  const riscoSuicida = d.risco["suicida"] || [];
+  const riscoHetero = d.risco["hetero"] || [];
+  const protetores = d.risco["protetores"] || [];
+  const temRiscoSuicida = riscoSuicida.some(r => !r.includes("Nega"));
+  return [
+    "PLANO DE CRISE",
+    "",
+    "Sinais de alerta (procurar atendimento se apresentar):",
+    "• Piora importante da tristeza, ansiedade ou irritabilidade",
+    "• Pensamentos de se machucar ou de morte",
+    "• Alucinações ou delírios",
+    "• Agitação ou comportamento de risco",
+    "• Recusa alimentar ou abandono do autocuidado",
+    "• Abandono da medicação",
+    "",
+    temRiscoSuicida ? "ATENÇÃO: Paciente com risco suicida identificado nesta avaliação." : "",
+    "",
+    "Medidas imediatas em caso de crise:",
+    "• Avisar familiar ou pessoa de confiança",
+    "• Não permanecer sozinho/a",
+    protetores.includes("Restrição de meios letais") || d.condutaSeguranca.includes("Restrição de meios letais")
+      ? "• Manter restrição de acesso a meios letais (medicamentos em excesso, objetos cortantes)"
+      : "• Restringir acesso a meios potencialmente letais",
+    "• Contatar o médico responsável",
+    "• Procurar o pronto-socorro psiquiátrico mais próximo",
+    "• Em emergência: SAMU 192 / CVV 188",
+    "",
+    protetores.length ? `Fatores protetores identificados: ${protetores.join(", ")}.` : "",
+    "",
+    d.condutaRetorno ? `Próximo retorno: ${d.condutaRetorno}` : "",
+  ].filter(l => l !== "").join("\n");
+}
+
+function gerarOrientacaoPaciente(d: ConsultaState): string {
+  const cid = d.diagnosticoPrincipal;
+  const cidDesc = cidLabel(cid);
+  return [
+    "ORIENTAÇÕES AO PACIENTE",
+    "",
+    `Você está em acompanhamento psiquiátrico${cid ? ` por quadro de ${cidDesc || cid}` : ""}.`,
+    "",
+    "Recomendações importantes:",
+    "• Mantenha o tratamento medicamentoso conforme prescrito — não interrompa por conta própria",
+    "• Mantenha horários regulares de sono",
+    "• Evite uso de álcool e outras drogas",
+    "• Mantenha atividades leves e contato social, mesmo que com dificuldade",
+    "• Comunique ao médico qualquer efeito colateral ou piora dos sintomas",
+    "",
+    d.condutaPsico.length ? `Psicoterapia recomendada: ${d.condutaPsico.join(", ")}.` : "",
+    "",
+    "Procure atendimento de urgência se apresentar:",
+    "• Pensamentos de se machucar ou de morte",
+    "• Piora importante e rápida dos sintomas",
+    "• Confusão mental ou comportamento muito diferente do habitual",
+    "• Recusa em se alimentar ou cuidar de si",
+    "",
+    d.condutaRetorno ? `Seu próximo retorno está programado para: ${d.condutaRetorno}` : "Agende seu próximo retorno conforme orientação médica.",
+    "",
+    "CVV (Centro de Valorização da Vida): 188 (24h, gratuito)",
+  ].filter(l => l !== "").join("\n");
+}
+
+function gerarOrientacaoFamiliar(d: ConsultaState): string {
+  const riscoSuicida = d.risco["suicida"] || [];
+  const temRisco = riscoSuicida.some(r => !r.includes("Nega"));
+  return [
+    "ORIENTAÇÕES À FAMÍLIA",
+    "",
+    `O/a paciente${d.ident.nome ? ` ${d.ident.nome}` : ""} está em acompanhamento psiquiátrico e necessita de suporte familiar.`,
+    "",
+    "O que a família pode fazer:",
+    "• Oferecer apoio emocional sem julgamentos",
+    "• Ajudar a manter a regularidade do tratamento e das medicações",
+    "• Observar mudanças de comportamento, humor, sono ou alimentação",
+    "• Incentivar atividades leves e manutenção do contato social",
+    "• Evitar conflitos desnecessários durante períodos de crise",
+    "",
+    temRisco
+      ? [
+          "ATENÇÃO — Risco suicida identificado:",
+          "• Mantenha supervisão próxima",
+          "• Retire ou restrinja o acesso a medicamentos em grande quantidade, objetos cortantes, armas e outros meios potencialmente letais",
+          "• Procure atendimento de urgência imediatamente se o/a paciente verbalizar intenção de se machucar, apresentar comportamento de risco ou se recusar a receber ajuda",
+        ].join("\n")
+      : "",
+    "",
+    "Procure o pronto-socorro ou ligue 192 (SAMU) em caso de risco iminente.",
+    "",
+    d.condutaRetorno ? `Próximo retorno: ${d.condutaRetorno}` : "",
+  ].filter(l => l !== "").join("\n");
+}
+
+// ─── UI Components ────────────────────────────────────────────────────────────
+
+function Chip({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "px-3 py-1.5 rounded-xl text-xs font-medium border transition-all select-none",
+        active
+          ? "bg-primary text-primary-foreground border-primary"
+          : "bg-card border-border text-muted-foreground hover:border-primary/40 hover:text-foreground"
+      )}
+    >
+      {label}
+    </button>
+  );
+}
+
+function NormalChip({ active, onClick }: { active: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all select-none",
+        active
+          ? "bg-emerald-500 text-white border-emerald-500"
+          : "bg-card border-border text-emerald-600 hover:border-emerald-400 hover:bg-emerald-500/5"
+      )}
+    >
+      ✓ Normal
+    </button>
+  );
+}
+
+function Block({ title, children }: { title?: string; children: React.ReactNode }) {
+  const [open, setOpen] = useState(true);
+  return (
+    <div className="bg-card border border-border rounded-2xl overflow-hidden">
+      {title && (
+        <button
+          type="button"
+          onClick={() => setOpen(v => !v)}
+          className="w-full flex items-center justify-between px-5 py-3.5 border-b border-border hover:bg-muted/20 transition-colors"
+        >
+          <span className="text-sm font-bold text-foreground">{title}</span>
+          {open ? <ChevronUp size={15} className="text-muted-foreground" /> : <ChevronDown size={15} className="text-muted-foreground" />}
+        </button>
+      )}
+      {open && <div className="p-5 space-y-4">{children}</div>}
+    </div>
+  );
+}
+
+function FieldGroup({ label, multi, children }: { label: string; multi?: boolean; children: React.ReactNode }) {
+  return (
+    <div className="space-y-2">
+      <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
+        {label}
+        {multi && <span className="ml-1 normal-case text-muted-foreground/60">(múltiplos)</span>}
+      </p>
+      <div className="flex flex-wrap gap-2">{children}</div>
+    </div>
+  );
+}
+
+function TextInput({ label, value, onChange, placeholder, rows }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string; rows?: number }) {
+  const cls = "w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none";
+  return (
+    <div className="space-y-1.5">
+      <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">{label}</label>
+      {rows ? (
+        <textarea rows={rows} className={cls} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} />
+      ) : (
+        <input type="text" className={cls} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} />
+      )}
+    </div>
+  );
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
+
+export default function NovaConsultaPage() {
+  const [step, setStep] = useState(0);
+  const [data, setData] = useState<ConsultaState>(INITIAL);
+  const [copied, setCopied] = useState<string | false>(false);
+  const [docAberto, setDocAberto] = useState<string | null>(null);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+
+  const set = useCallback(<K extends keyof ConsultaState>(key: K, val: ConsultaState[K]) => {
+    setData(prev => ({ ...prev, [key]: val }));
+  }, []);
+
+  const toggleArr = useCallback((key: "qp" | "hpmaInicio" | "hpmaCurso" | "antClinico" | "antFamiliar" | "diferenciais" | "gravidade" | "especificadores" | "condutaPsico" | "condutaExames" | "condutaEncam" | "condutaSeguranca", val: string) => {
+    setData(prev => {
+      const arr = prev[key] as string[];
+      return { ...prev, [key]: arr.includes(val) ? arr.filter(v => v !== val) : [...arr, val] };
+    });
+  }, []);
+
+  const toggleSels = useCallback((field: "hpmaSintomas" | "antPsi" | "substancias" | "eem" | "risco", sub: string, val: string, multi = true) => {
+    setData(prev => {
+      const sels = { ...prev[field] };
+      const cur = sels[sub] || [];
+      if (field === "eem" && val === "_normal") {
+        sels[sub] = cur.includes("_normal") ? [] : ["_normal"];
+      } else if (field === "eem") {
+        sels[sub] = cur.includes(val) ? cur.filter(v => v !== val) : [...cur.filter(v => v !== "_normal"), val];
+      } else if (multi) {
+        sels[sub] = cur.includes(val) ? cur.filter(v => v !== val) : [...cur, val];
+      } else {
+        sels[sub] = cur.includes(val) ? [] : [val];
+      }
+      return { ...prev, [field]: sels };
+    });
+  }, []);
+
+  const toggleModule = useCallback((id: string) => {
+    setData(prev => ({
+      ...prev,
+      advancedModules: { ...prev.advancedModules, [id]: !prev.advancedModules[id] },
+    }));
+  }, []);
+
+  async function copy(text: string, id: string) {
+    await navigator.clipboard.writeText(text);
+    setCopied(id);
+    setTimeout(() => setCopied(false), 2000);
+  }
+
+  function handleGenerateProntuario() {
+    const text = gerarProntuario(data);
+    set("prontuarioBase", text);
+  }
+
+  function handleConfirm() {
+    set("prontuarioConfirmado", true);
+    setStep(8);
+  }
+
+  // ── Step renderers ────────────────────────────────────────────────────────────
+
+  function renderTipo() {
+    return (
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {TIPOS.map(t => (
+          <button
+            key={t.value}
+            type="button"
+            onClick={() => set("tipo", t.value)}
+            className={cn(
+              "text-left p-4 rounded-2xl border transition-all",
+              data.tipo === t.value
+                ? "border-primary bg-primary/5 ring-1 ring-primary/30"
+                : "border-border bg-card hover:border-primary/30"
+            )}
+          >
+            <p className="font-semibold text-sm text-foreground">{t.label}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">{t.desc}</p>
+          </button>
+        ))}
+      </div>
+    );
+  }
+
+  function renderIdent() {
+    const f = (key: string) => data.ident[key] || "";
+    const setF = (key: string, val: string) => set("ident", { ...data.ident, [key]: val });
+    return (
+      <div className="space-y-4">
+        <Block>
+          <div className="grid grid-cols-2 gap-4">
+            <TextInput label="Nome (opcional)" value={f("nome")} onChange={v => setF("nome", v)} placeholder="Nome do paciente" />
+            <TextInput label="Idade" value={f("idade")} onChange={v => setF("idade", v)} placeholder="Ex: 42" />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Sexo</label>
+              <div className="flex gap-2">
+                {["Feminino", "Masculino", "Outro"].map(s => (
+                  <Chip key={s} label={s} active={f("sexo") === s} onClick={() => setF("sexo", f("sexo") === s ? "" : s)} />
+                ))}
+              </div>
+            </div>
+            <TextInput label="Naturalidade" value={f("naturalidade")} onChange={v => setF("naturalidade", v)} placeholder="Cidade / estado" />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <TextInput label="Escolaridade" value={f("escolaridade")} onChange={v => setF("escolaridade", v)} placeholder="Ex: Ensino médio completo" />
+            <TextInput label="Profissão" value={f("profissao")} onChange={v => setF("profissao", v)} placeholder="Ex: Auxiliar administrativo" />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <TextInput label="Estado civil" value={f("estadoCivil")} onChange={v => setF("estadoCivil", v)} placeholder="Ex: Casado/a" />
+            <TextInput label="Com quem mora" value={f("comQuemMora")} onChange={v => setF("comQuemMora", v)} placeholder="Ex: Cônjuge e filhos" />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <TextInput label="Fonte das informações" value={f("fonteInfo")} onChange={v => setF("fonteInfo", v)} placeholder="Ex: Relato próprio e familiar" />
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Confiabilidade</label>
+              <div className="flex gap-2 flex-wrap">
+                {["Boa", "Regular", "Prejudicada"].map(s => (
+                  <Chip key={s} label={s} active={f("confiabilidade") === s} onClick={() => setF("confiabilidade", f("confiabilidade") === s ? "" : s)} />
+                ))}
+              </div>
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Acompanhante presente</label>
+            <div className="flex gap-2">
+              {[{ v: "sim", l: "Sim" }, { v: "nao", l: "Não" }].map(s => (
+                <Chip key={s.v} label={s.l} active={f("acompanhante") === s.v} onClick={() => setF("acompanhante", f("acompanhante") === s.v ? "" : s.v)} />
+              ))}
+            </div>
+          </div>
+        </Block>
+      </div>
+    );
+  }
+
+  function renderQPHPMA() {
+    return (
+      <div className="space-y-4">
+        <Block title="Queixa Principal (QP)">
+          <FieldGroup label="Selecione as queixas" multi>
+            {QP_CHIPS.map(q => (
+              <Chip key={q} label={q} active={data.qp.includes(q)} onClick={() => toggleArr("qp", q)} />
+            ))}
+          </FieldGroup>
+          <TextInput label="Detalhes adicionais / queixa em palavras do paciente" value={data.qpLivre} onChange={v => set("qpLivre", v)} placeholder='Ex: "Sinto que não consigo mais fazer nada."' rows={2} />
+        </Block>
+
+        <Block title="HPMA — Início e curso">
+          <FieldGroup label="Início do quadro" multi>
+            {HPMA_INICIO.map(o => (
+              <Chip key={o} label={o} active={data.hpmaInicio.includes(o)} onClick={() => toggleArr("hpmaInicio", o)} />
+            ))}
+          </FieldGroup>
+          <FieldGroup label="Curso" multi>
+            {HPMA_CURSO.map(o => (
+              <Chip key={o} label={o} active={data.hpmaCurso.includes(o)} onClick={() => toggleArr("hpmaCurso", o)} />
+            ))}
+          </FieldGroup>
+        </Block>
+
+        {HPMA_DOMINIOS.map(dom => (
+          <Block key={dom.id} title={dom.label}>
+            <div className="flex flex-wrap gap-2">
+              {dom.opcoes.map(o => (
+                <Chip key={o} label={o} active={(data.hpmaSintomas[dom.id] || []).includes(o)} onClick={() => toggleSels("hpmaSintomas", dom.id, o)} />
+              ))}
+            </div>
+          </Block>
+        ))}
+
+        <Block title="Observações adicionais da HPMA">
+          <TextInput label="Campo livre" value={data.hpmaLivre} onChange={v => set("hpmaLivre", v)} placeholder="Informações relevantes não cobertas acima..." rows={3} />
+        </Block>
+      </div>
+    );
+  }
+
+  function renderAntecedentes() {
+    return (
+      <div className="space-y-4">
+        <Block title="Antecedentes psiquiátricos">
+          <FieldGroup label="Diagnósticos prévios" multi>
+            {ANT_PSI_DIAGS.map(d => (
+              <Chip key={d} label={d} active={(data.antPsi["diagnosticos"] || []).includes(d)} onClick={() => toggleSels("antPsi", "diagnosticos", d)} />
+            ))}
+          </FieldGroup>
+          <FieldGroup label="Internações psiquiátricas prévias">
+            {[{ v: "sim", l: "Sim" }, { v: "nao", l: "Não" }].map(s => (
+              <Chip key={s.v} label={s.l} active={(data.antPsi["internacoes"] || []).includes(s.v)} onClick={() => toggleSels("antPsi", "internacoes", s.v, false)} />
+            ))}
+          </FieldGroup>
+          <FieldGroup label="Tentativas de suicídio prévias">
+            {[{ v: "sim", l: "Sim" }, { v: "nao", l: "Não" }].map(s => (
+              <Chip key={s.v} label={s.l} active={(data.antPsi["tentativas"] || []).includes(s.v)} onClick={() => toggleSels("antPsi", "tentativas", s.v, false)} />
+            ))}
+          </FieldGroup>
+          <FieldGroup label="Automutilação">
+            {[{ v: "sim", l: "Sim" }, { v: "nao", l: "Não" }].map(s => (
+              <Chip key={s.v} label={s.l} active={(data.antPsi["automutilacao"] || []).includes(s.v)} onClick={() => toggleSels("antPsi", "automutilacao", s.v, false)} />
+            ))}
+          </FieldGroup>
+          <FieldGroup label="Psicoterapia prévia">
+            {[{ v: "sim", l: "Sim" }, { v: "nao", l: "Não" }].map(s => (
+              <Chip key={s.v} label={s.l} active={(data.antPsi["psicoterapia"] || []).includes(s.v)} onClick={() => toggleSels("antPsi", "psicoterapia", s.v, false)} />
+            ))}
+          </FieldGroup>
+        </Block>
+
+        <Block title="Tratamento prévio (TTO Prévio)">
+          <TextInput label="Medicações prévias, resposta e efeitos adversos" value={data.ttoPrevio} onChange={v => set("ttoPrevio", v)} placeholder="Ex: Uso prévio de sertralina 50mg, resposta parcial. Nega internações." rows={3} />
+        </Block>
+
+        <Block title="Medicamentos em uso (MUC) e alergias">
+          <TextInput label="Medicamentos em uso atual" value={data.muc} onChange={v => set("muc", v)} placeholder="Ex: Sertralina 100mg 1x/dia, clonazepam 0,5mg à noite." rows={2} />
+          <TextInput label="Alergias medicamentosas" value={data.alergias} onChange={v => set("alergias", v)} placeholder="Ex: Nega alergias. / Alergia à amoxicilina." />
+        </Block>
+
+        <Block title="Antecedentes pessoais clínicos">
+          <FieldGroup label="Comorbidades clínicas" multi>
+            {ANT_CLINICOS.map(d => (
+              <Chip key={d} label={d} active={data.antClinico.includes(d)} onClick={() => toggleArr("antClinico", d)} />
+            ))}
+          </FieldGroup>
+          <TextInput label="Outros detalhes clínicos" value={data.antDetalhes} onChange={v => set("antDetalhes", v)} placeholder="Ex: Epilepsia controlada com fenobarbital." rows={2} />
+        </Block>
+
+        <Block title="Antecedentes familiares">
+          <FieldGroup label="História familiar de" multi>
+            {ANT_FAMILIARES.map(d => (
+              <Chip key={d} label={d} active={data.antFamiliar.includes(d)} onClick={() => toggleArr("antFamiliar", d)} />
+            ))}
+          </FieldGroup>
+        </Block>
+
+        <Block title="Uso de substâncias">
+          <div className="grid grid-cols-1 gap-3">
+            {SUBSTANCIAS.map(s => (
+              <div key={s.id} className="flex items-center gap-3">
+                <Chip label={s.label} active={(data.substancias[s.id] || []).includes("usa")} onClick={() => toggleSels("substancias", s.id, "usa", false)} />
+                {(data.substancias[s.id] || []).includes("usa") && (
+                  <span className="text-xs text-amber-600 dark:text-amber-400">▲ Em uso</span>
+                )}
+              </div>
+            ))}
+          </div>
+        </Block>
+      </div>
+    );
+  }
+
+  function renderEEM() {
+    return (
+      <div className="space-y-3">
+        {EEM_DOMINIOS.map(dom => {
+          const sels = data.eem[dom.id] || [];
+          const isNormal = sels.includes("_normal");
+          return (
+            <div key={dom.id} className="bg-card border border-border rounded-2xl overflow-hidden">
+              <div className="px-5 py-3.5 border-b border-border flex items-center justify-between gap-3">
+                <span className="text-sm font-bold text-foreground">{dom.label}</span>
+                <NormalChip active={isNormal} onClick={() => toggleSels("eem", dom.id, "_normal")} />
+              </div>
+              <div className="p-5">
+                {isNormal ? (
+                  <p className="text-xs text-emerald-600 dark:text-emerald-400 italic">{dom.normal}</p>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {dom.opcoes.map(o => (
+                      <Chip key={o} label={o} active={sels.includes(o)} onClick={() => toggleSels("eem", dom.id, o)} />
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+        <Block title="Observações adicionais do EEM">
+          <TextInput label="Campo livre" value={data.eemLivre} onChange={v => set("eemLivre", v)} placeholder="Informações complementares ao exame mental..." rows={3} />
+        </Block>
+      </div>
+    );
+  }
+
+  function renderRiscoHD() {
+    return (
+      <div className="space-y-4">
+        <Block title="Risco suicida">
+          <FieldGroup label="Selecione o que se aplica" multi>
+            {RISCO_SUICIDA.map(r => (
+              <Chip key={r} label={r} active={(data.risco["suicida"] || []).includes(r)} onClick={() => toggleSels("risco", "suicida", r)} />
+            ))}
+          </FieldGroup>
+        </Block>
+
+        <Block title="Risco heteroagressivo">
+          <FieldGroup label="Selecione o que se aplica" multi>
+            {RISCO_HETERO.map(r => (
+              <Chip key={r} label={r} active={(data.risco["hetero"] || []).includes(r)} onClick={() => toggleSels("risco", "hetero", r)} />
+            ))}
+          </FieldGroup>
+        </Block>
+
+        <Block title="Fatores protetores">
+          <FieldGroup label="Presentes nesta avaliação" multi>
+            {FATORES_PROTETORES.map(r => (
+              <Chip key={r} label={r} active={(data.risco["protetores"] || []).includes(r)} onClick={() => toggleSels("risco", "protetores", r)} />
+            ))}
+          </FieldGroup>
+        </Block>
+
+        <Block title="Nível de risco geral">
+          <FieldGroup label="Classificação do médico">
+            {["Baixo", "Moderado", "Elevado", "Iminente"].map(r => (
+              <Chip key={r} label={r} active={data.nivelRisco === r} onClick={() => set("nivelRisco", data.nivelRisco === r ? "" : r)} />
+            ))}
+          </FieldGroup>
+        </Block>
+
+        <Block title="Hipótese diagnóstica">
+          <div className="space-y-1.5">
+            <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">CID-10 principal</label>
+            <select
+              className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+              value={data.diagnosticoPrincipal}
+              onChange={e => set("diagnosticoPrincipal", e.target.value)}
+            >
+              <option value="">Selecionar CID-10...</option>
+              {CIDS.map(c => (
+                <option key={c.code} value={c.code}>{c.code} — {c.desc}</option>
+              ))}
+            </select>
+          </div>
+          <TextInput label="Descrição livre / hipótese adicional" value={data.diagnosticoLivre} onChange={v => set("diagnosticoLivre", v)} placeholder="Ex: Episódio depressivo em investigação de bipolaridade." />
+          <FieldGroup label="Gravidade" multi>
+            {GRAVIDADES.map(g => (
+              <Chip key={g} label={g} active={data.gravidade === g} onClick={() => set("gravidade", data.gravidade === g ? "" : g)} />
+            ))}
+          </FieldGroup>
+          <FieldGroup label="Especificadores" multi>
+            {ESPECIFICADORES.map(e => (
+              <Chip key={e} label={e} active={data.especificadores.includes(e)} onClick={() => toggleArr("especificadores", e)} />
+            ))}
+          </FieldGroup>
+          <TextInput label="Diagnósticos diferenciais (um por linha ou separados por vírgula)" value={data.diferenciais.join(", ")} onChange={v => set("diferenciais", v ? v.split(",").map(s => s.trim()).filter(Boolean) : [])} placeholder="Ex: TAB, Transtorno esquizoafetivo, Depressão por substância" />
+        </Block>
+      </div>
+    );
+  }
+
+  function renderConduta() {
+    return (
+      <div className="space-y-4">
+        <Block title="Farmacoterapia">
+          <TextInput label="Prescrição / ajuste medicamentoso" value={data.condutaFarma} onChange={v => set("condutaFarma", v)} placeholder="Ex: Iniciar sertralina 50mg 1x/dia pela manhã. Quetiapina 25mg à noite para sono." rows={3} />
+        </Block>
+
+        <Block title="Psicoterapia">
+          <FieldGroup label="Modalidade indicada" multi>
+            {CONDUTA_PSICO.map(p => (
+              <Chip key={p} label={p} active={data.condutaPsico.includes(p)} onClick={() => toggleArr("condutaPsico", p)} />
+            ))}
+          </FieldGroup>
+        </Block>
+
+        <Block title="Exames solicitados">
+          <FieldGroup label="Selecionar exames" multi>
+            {CONDUTA_EXAMES.map(e => (
+              <Chip key={e} label={e} active={data.condutaExames.includes(e)} onClick={() => toggleArr("condutaExames", e)} />
+            ))}
+          </FieldGroup>
+        </Block>
+
+        <Block title="Encaminhamentos">
+          <FieldGroup label="Encaminhar para" multi>
+            {CONDUTA_ENCAM.map(e => (
+              <Chip key={e} label={e} active={data.condutaEncam.includes(e)} onClick={() => toggleArr("condutaEncam", e)} />
+            ))}
+          </FieldGroup>
+        </Block>
+
+        <Block title="Plano de segurança">
+          <FieldGroup label="Medidas de segurança discutidas" multi>
+            {CONDUTA_SEGURANCA.map(s => (
+              <Chip key={s} label={s} active={data.condutaSeguranca.includes(s)} onClick={() => toggleArr("condutaSeguranca", s)} />
+            ))}
+          </FieldGroup>
+        </Block>
+
+        <Block title="Retorno e observações">
+          <TextInput label="Prazo de retorno" value={data.condutaRetorno} onChange={v => set("condutaRetorno", v)} placeholder="Ex: 14 dias / 1 mês / antes se piora" />
+          <TextInput label="Observações adicionais" value={data.condutaObs} onChange={v => set("condutaObs", v)} placeholder="Orientações específicas ao caso..." rows={2} />
+        </Block>
+      </div>
+    );
+  }
+
+  function renderProntuario() {
+    return (
+      <div className="space-y-4">
+        <Block title="Escolha o layout do prontuário">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {LAYOUTS.map(l => (
+              <button
+                key={l.id}
+                type="button"
+                onClick={() => set("layout", l.id)}
+                className={cn(
+                  "text-left p-4 rounded-2xl border transition-all",
+                  data.layout === l.id
+                    ? "border-primary bg-primary/5 ring-1 ring-primary/30"
+                    : "border-border bg-card hover:border-primary/30"
+                )}
+              >
+                <p className="font-semibold text-sm text-foreground">{l.label}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{l.desc}</p>
+              </button>
+            ))}
+          </div>
+        </Block>
+
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={handleGenerateProntuario}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors"
+          >
+            <FileText size={15} />
+            Gerar prontuário
+          </button>
+          {data.prontuarioBase && (
+            <button
+              type="button"
+              onClick={() => copy(data.prontuarioBase, "prontuario")}
+              className={cn(
+                "flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold border transition-all",
+                copied === "prontuario"
+                  ? "bg-green-500/10 text-green-600 border-green-500/30"
+                  : "border-border text-muted-foreground hover:border-primary/30"
+              )}
+            >
+              {copied === "prontuario" ? <Check size={14} /> : <Copy size={14} />}
+              {copied === "prontuario" ? "Copiado!" : "Copiar"}
+            </button>
+          )}
+        </div>
+
+        {data.prontuarioBase && (
+          <div className="bg-card border border-border rounded-2xl overflow-hidden">
+            <div className="px-5 py-3.5 border-b border-border flex items-center justify-between">
+              <span className="text-sm font-bold text-foreground">Prontuário-base</span>
+              <span className="text-xs text-muted-foreground">Revise e edite antes de confirmar</span>
+            </div>
+            <div className="p-5">
+              <textarea
+                rows={20}
+                className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-xs text-foreground font-mono leading-relaxed focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
+                value={data.prontuarioBase}
+                onChange={e => set("prontuarioBase", e.target.value)}
+              />
+            </div>
+            <div className="px-5 pb-5">
+              <button
+                type="button"
+                onClick={handleConfirm}
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-emerald-600 text-white text-sm font-bold hover:bg-emerald-700 transition-colors"
+              >
+                <Check size={16} />
+                Confirmar prontuário-base e continuar
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // ── Post-consultation central ─────────────────────────────────────────────────
+
+  const POS_DOCS = [
+    { id: "atestado-cid", label: "Atestado com CID", icon: FileText, gen: () => gerarAtestado(data, true) },
+    { id: "atestado-sem-cid", label: "Atestado sem CID", icon: FileText, gen: () => gerarAtestado(data, false) },
+    { id: "relatorio-simples", label: "Relatório médico simples", icon: ClipboardList, gen: () => gerarRelatorioSimples(data) },
+    { id: "relatorio-inss", label: "Relatório INSS / Perícia", icon: BookOpen, gen: () => gerarRelatorioINSS(data) },
+    { id: "encaminhamento", label: "Encaminhamento", icon: FileOutput, gen: () => gerarEncaminhamento(data) },
+    { id: "orientacao-paciente", label: "Orientação ao paciente", icon: User, gen: () => gerarOrientacaoPaciente(data) },
+    { id: "orientacao-familiar", label: "Orientação familiar", icon: Users, gen: () => gerarOrientacaoFamiliar(data) },
+    { id: "plano-crise", label: "Plano de crise", icon: AlertTriangle, gen: () => gerarPlanoCrise(data) },
+  ];
+
+  function renderPosConsulta() {
+    return (
+      <div className="space-y-5">
+        <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-2xl px-5 py-4 flex gap-3">
+          <Check size={14} className="text-emerald-500 shrink-0 mt-0.5" />
+          <p className="text-xs text-emerald-700 dark:text-emerald-400 leading-relaxed font-medium">
+            Prontuário-base confirmado. Selecione abaixo os documentos pós-consulta que deseja gerar.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {POS_DOCS.map(doc => {
+            const Icon = doc.icon;
+            const isOpen = docAberto === doc.id;
+            const texto = isOpen ? doc.gen() : "";
+            return (
+              <div key={doc.id} className="bg-card border border-border rounded-2xl overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setDocAberto(isOpen ? null : doc.id)}
+                  className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-muted/20 transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    <Icon size={16} className="text-primary shrink-0" />
+                    <span className="text-sm font-semibold text-foreground">{doc.label}</span>
+                  </div>
+                  {isOpen ? <ChevronUp size={14} className="text-muted-foreground" /> : <ChevronDown size={14} className="text-muted-foreground" />}
+                </button>
+                {isOpen && (
+                  <div className="px-5 pb-5 space-y-3 border-t border-border pt-4">
+                    <pre className="text-xs text-foreground leading-relaxed whitespace-pre-wrap font-sans bg-background border border-border rounded-xl p-4 max-h-60 overflow-y-auto">
+                      {texto}
+                    </pre>
+                    <button
+                      type="button"
+                      onClick={() => copy(texto, doc.id)}
+                      className={cn(
+                        "flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold border transition-all",
+                        copied === doc.id
+                          ? "bg-green-500/10 text-green-600 border-green-500/30"
+                          : "border-border text-muted-foreground hover:border-primary/30 hover:text-foreground"
+                      )}
+                    >
+                      {copied === doc.id ? <Check size={12} /> : <Copy size={12} />}
+                      {copied === doc.id ? "Copiado!" : "Copiar texto"}
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="bg-card border border-border rounded-2xl p-5">
+          <p className="text-xs font-bold text-foreground mb-3">Prontuário-base confirmado</p>
+          <pre className="text-xs text-foreground leading-relaxed whitespace-pre-wrap font-sans bg-background border border-border rounded-xl p-4 max-h-80 overflow-y-auto">
+            {data.prontuarioBase}
+          </pre>
+          <button
+            type="button"
+            onClick={() => copy(data.prontuarioBase, "prontuario-base-final")}
+            className={cn(
+              "mt-3 flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold border transition-all",
+              copied === "prontuario-base-final"
+                ? "bg-green-500/10 text-green-600 border-green-500/30"
+                : "border-border text-muted-foreground hover:border-primary/30"
+            )}
+          >
+            {copied === "prontuario-base-final" ? <Check size={12} /> : <Copy size={12} />}
+            {copied === "prontuario-base-final" ? "Copiado!" : "Copiar prontuário"}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Layout ────────────────────────────────────────────────────────────────────
+
+  const isPosConsulta = step === 8;
+
+  return (
+    <AuthGuard>
+      <DashboardLayout>
+        <div className="space-y-5 pb-8">
+          {/* Header */}
+          <div className="flex items-center gap-3">
+            <div
+              className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+              style={{ background: "linear-gradient(135deg, #06B6D4, #0891B2)" }}
+            >
+              <ClipboardList size={20} className="text-white" />
+            </div>
+            <div className="flex-1">
+              <h1 className="text-xl font-bold text-foreground">
+                {isPosConsulta ? "Central Pós-Consulta" : "Nova Consulta"}
+              </h1>
+              <p className="text-xs text-muted-foreground">
+                {isPosConsulta ? "Gere documentos a partir do prontuário confirmado" : `Etapa ${step + 1} de ${STEPS.length}`}
+              </p>
+            </div>
+            {!isPosConsulta && (
+              <button
+                type="button"
+                onClick={() => { setData(INITIAL); setStep(0); }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border text-xs text-muted-foreground hover:text-foreground hover:border-primary/30 transition-colors"
+              >
+                <RotateCcw size={12} />
+                Limpar
+              </button>
+            )}
+          </div>
+
+          {/* Step indicator */}
+          {!isPosConsulta && (
+            <div className="bg-card border border-border rounded-2xl p-4">
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+                {STEPS.map((s, i) => {
+                  const Icon = s.icon;
+                  const done = i < step;
+                  const active = i === step;
+                  return (
+                    <button
+                      key={s.id}
+                      type="button"
+                      onClick={() => i <= step && setStep(i)}
+                      className={cn(
+                        "flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition-all shrink-0",
+                        active ? "bg-primary text-primary-foreground" : done ? "text-primary cursor-pointer hover:bg-primary/5" : "text-muted-foreground cursor-default"
+                      )}
+                    >
+                      {done ? <Check size={11} /> : <Icon size={11} />}
+                      {s.label}
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="mt-3 h-1.5 bg-muted rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-primary rounded-full transition-all duration-300"
+                  style={{ width: `${((step) / (STEPS.length - 1)) * 100}%` }}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Disclaimer */}
+          <div className="bg-amber-500/5 border border-amber-500/20 rounded-2xl px-5 py-3 flex gap-3">
+            <AlertCircle size={13} className="text-amber-500 shrink-0 mt-0.5" />
+            <p className="text-xs text-amber-700 dark:text-amber-400 leading-relaxed">
+              Ferramenta de apoio à documentação clínica. O médico é responsável por revisar, adaptar e assinar todos os documentos.
+            </p>
+          </div>
+
+          {/* Advanced Config */}
+          <AdvancedConfigPanel
+            open={advancedOpen}
+            onToggle={() => setAdvancedOpen(v => !v)}
+            modules={data.advancedModules}
+            onToggleModule={toggleModule}
+          />
+
+          {/* Step title */}
+          {!isPosConsulta && (
+            <div>
+              <h2 className="text-base font-bold text-foreground">{STEPS[step].label}</h2>
+            </div>
+          )}
+
+          {/* Content */}
+          {step === 0 && renderTipo()}
+          {step === 1 && renderIdent()}
+          {step === 2 && renderQPHPMA()}
+          {step === 3 && renderAntecedentes()}
+          {step === 4 && renderEEM()}
+          {step === 5 && renderRiscoHD()}
+          {step === 6 && renderConduta()}
+          {step === 7 && renderProntuario()}
+          {step === 8 && renderPosConsulta()}
+
+          {/* Navigation */}
+          {!isPosConsulta && (
+            <div className="flex items-center justify-between pt-2">
+              <button
+                type="button"
+                onClick={() => setStep(s => Math.max(0, s - 1))}
+                disabled={step === 0}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-border text-sm font-medium text-muted-foreground hover:text-foreground hover:border-primary/30 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+              >
+                <ChevronLeft size={16} />
+                Voltar
+              </button>
+              {step < STEPS.length - 1 && (
+                <button
+                  type="button"
+                  onClick={() => setStep(s => Math.min(STEPS.length - 1, s + 1))}
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors"
+                >
+                  Próximo
+                  <ChevronRight size={16} />
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      </DashboardLayout>
+    </AuthGuard>
+  );
+}
