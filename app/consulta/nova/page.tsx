@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import {
   ChevronLeft, ChevronRight, Check, Copy, RotateCcw,
   ChevronDown, ChevronUp, AlertCircle, FileText, ClipboardList,
@@ -54,6 +54,10 @@ interface ConsultaState {
   prontuarioBase: string;
   prontuarioConfirmado: boolean;
   advancedModules: Record<string, boolean>;
+  sintomosAlvo: string[];
+  adesao: string;
+  metasRetorno: string;
+  raciocinioCli: string;
 }
 
 const INITIAL: ConsultaState = {
@@ -65,7 +69,7 @@ const INITIAL: ConsultaState = {
   condutaFarma: "", condutaPsico: [], condutaExames: [], condutaEncam: [],
   condutaSeguranca: [], condutaRetorno: "", condutaObs: "",
   layout: "estruturado", prontuarioBase: "", prontuarioConfirmado: false,
-  advancedModules: {},
+  advancedModules: {}, sintomosAlvo: [], adesao: "", metasRetorno: "", raciocinioCli: "",
 };
 
 // ─── Steps ────────────────────────────────────────────────────────────────────
@@ -558,6 +562,9 @@ function gerarProntuario(d: ConsultaState): string {
     d.condutaEncam.length ? `Encaminhamentos: ${d.condutaEncam.join(", ")}.` : "",
     d.condutaSeguranca.length ? `Plano de segurança: ${d.condutaSeguranca.join(", ")}.` : "",
     d.condutaRetorno ? `Retorno: ${d.condutaRetorno}.` : "",
+    d.advancedModules["adesao"] && d.adesao ? `Adesão ao tratamento: ${d.adesao}.` : "",
+    d.advancedModules["sintomas-alvo"] && d.sintomosAlvo.length ? `Sintomas-alvo para monitoramento: ${d.sintomosAlvo.join(", ")}.` : "",
+    d.advancedModules["metas-retorno"] && d.metasRetorno ? `Metas até o retorno: ${d.metasRetorno}.` : "",
     d.condutaObs || "",
   ].filter(Boolean);
 
@@ -595,6 +602,7 @@ function gerarProntuario(d: ConsultaState): string {
     if (hdText) sections.push(`HIPÓTESE DIAGNÓSTICA\n${hdText}`);
     if (d.diferenciais.length) sections.push(`DIAGNÓSTICOS DIFERENCIAIS\n${d.diferenciais.join("\n")}`);
     if (condutaLines.length) sections.push(`CONDUTA\n${condutaLines.join("\n")}`);
+    if (d.advancedModules["raciocinio-clinico"] && d.raciocinioCli) sections.push(`RACIOCÍNIO CLÍNICO\n${d.raciocinioCli}`);
     return sections.join("\n\n");
   }
 
@@ -949,6 +957,89 @@ function TextInput({ label, value, onChange, placeholder, rows }: { label: strin
   );
 }
 
+// ─── Advanced Module Helpers ──────────────────────────────────────────────────
+
+function buildResumoInteligente(d: ConsultaState) {
+  const cid = d.diagnosticoPrincipal;
+  const cidDesc = cidLabel(cid);
+  return {
+    sindrome: d.qp[0] || d.qpLivre || "Não definida",
+    cid: cid ? `${cid}${cidDesc ? ` — ${cidDesc}` : ""}` : "Não definido",
+    risco: d.nivelRisco || "Não classificado",
+    condutaPrincipal: d.condutaFarma || (d.condutaPsico.length ? d.condutaPsico[0] : "") || "Não definida",
+  };
+}
+
+function buildSinaisAlerta(d: ConsultaState): string[] {
+  const alertas: string[] = [];
+  const suicida = d.risco["suicida"] || [];
+  const sensoperc = d.eem["sensopercepcao"] || [];
+  const pensConteudo = d.eem["pens-conteudo"] || [];
+  const maniaSintomas = d.hpmaSintomas["mania"] || [];
+  const funcPrejuizo = d.hpmaSintomas["funcionalidade"] || [];
+  const insight = d.eem["insight"] || [];
+
+  if (suicida.some(r => r.includes("plano") || r.includes("intenção") || r.includes("Tentativa")))
+    alertas.push("Risco suicida com plano, intenção ou tentativa recente — avaliar internação imediata");
+  if (suicida.some(r => r.includes("Meios letais")))
+    alertas.push("Meios letais disponíveis — orientar restrição imediata à família");
+  if (sensoperc.some(r => r.includes("Alucinações")))
+    alertas.push("Alterações sensoperceptivas presentes — investigar causa e avaliar antipsicótico");
+  if (pensConteudo.some(r => r.includes("Delírio")))
+    alertas.push("Conteúdo de pensamento delirante — avaliar antipsicótico e nível de cuidado");
+  if (funcPrejuizo.includes("Afastamento do trabalho") || funcPrejuizo.includes("Prejuízo no autocuidado"))
+    alertas.push("Prejuízo funcional significativo — considerar nível de cuidado mais intensivo");
+  const substUsadas = SUBSTANCIAS.filter(s => d.substancias[s.id]?.includes("usa"));
+  if (substUsadas.length)
+    alertas.push(`Uso ativo de substâncias (${substUsadas.map(s => s.label).join(", ")}) — avaliar interações e motivação`);
+  if (maniaSintomas.length >= 3)
+    alertas.push("Múltiplos sintomas maníacos — cuidado ao prescrever antidepressivos sem estabilizador");
+  if (insight.includes("Crítica ausente") && suicida.some(r => !r.includes("Nega")))
+    alertas.push("Insight ausente com risco identificado — risco de não adesão ao plano de segurança");
+  const idadeStr = d.ident.idade;
+  if (idadeStr && parseInt(idadeStr) > 60 && sensoperc.some(r => r.includes("visuais")))
+    alertas.push("Idoso com alucinações visuais — descartar causa orgânica (delirium, DCL)");
+  return alertas;
+}
+
+function buildNivelCuidado(d: ConsultaState): { nivel: string; justificativa: string; cor: "rose" | "orange" | "amber" | "emerald" } {
+  const suicida = d.risco["suicida"] || [];
+  const sensoperc = d.eem["sensopercepcao"] || [];
+  const funcPrejuizo = d.hpmaSintomas["funcionalidade"] || [];
+  const hasPsicose = sensoperc.some(r => r.includes("Alucinações"));
+  const hasIntencao = suicida.some(r => r.includes("intenção") || r.includes("Intenção"));
+  const hasPlanoOuTentativa = suicida.some(r => r.includes("plano") || r.includes("recente"));
+  const hasFuncGrave = funcPrejuizo.includes("Afastamento do trabalho") || funcPrejuizo.includes("Prejuízo no autocuidado");
+
+  if (d.nivelRisco === "Iminente" || hasIntencao)
+    return { nivel: "Internação psiquiátrica", justificativa: "Risco iminente ou intenção de agir identificada", cor: "rose" };
+  if (d.nivelRisco === "Elevado" || hasPlanoOuTentativa || (hasPsicose && hasFuncGrave))
+    return { nivel: "Avaliar internação ou Hospital Dia", justificativa: "Risco elevado ou psicose com prejuízo funcional grave", cor: "orange" };
+  if (d.nivelRisco === "Moderado" || (hasPsicose && !hasFuncGrave))
+    return { nivel: "CAPS ou retorno precoce em 7–14 dias", justificativa: "Risco moderado ou sintomas psicóticos sem crise iminente", cor: "amber" };
+  if (hasFuncGrave)
+    return { nivel: "Hospital Dia ou seguimento intensivo", justificativa: "Prejuízo funcional grave sem risco iminente", cor: "amber" };
+  return { nivel: "Ambulatorial com retorno programado", justificativa: "Risco baixo com suporte adequado", cor: "emerald" };
+}
+
+function buildQualidadeProntuario(d: ConsultaState): { score: number; items: { label: string; ok: boolean }[] } {
+  const items = [
+    { label: "Tipo de atendimento", ok: !!d.tipo },
+    { label: "Dados de identificação", ok: !!(d.ident.idade || d.ident.nome) },
+    { label: "Queixa principal", ok: d.qp.length > 0 || !!d.qpLivre },
+    { label: "HPMA com início e sintomas", ok: d.hpmaInicio.length > 0 || Object.values(d.hpmaSintomas).some(v => v.length > 0) },
+    { label: "Antecedentes investigados", ok: !!(d.antPsi["diagnosticos"]?.length || d.ttoPrevio || d.antClinico.length) },
+    { label: "Medicamentos em uso (MUC)", ok: !!d.muc },
+    { label: "Exame do estado mental", ok: Object.values(d.eem).some(v => v.length > 0) },
+    { label: "Avaliação de risco suicida", ok: (d.risco["suicida"] || []).length > 0 },
+    { label: "Hipótese diagnóstica (CID)", ok: !!d.diagnosticoPrincipal },
+    { label: "Conduta farmacológica ou psicossocial", ok: !!d.condutaFarma || d.condutaPsico.length > 0 },
+    { label: "Prazo de retorno definido", ok: !!d.condutaRetorno },
+  ];
+  const nOk = items.filter(i => i.ok).length;
+  return { score: Math.round((nOk / items.length) * 100), items };
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function NovaConsultaPage() {
@@ -962,7 +1053,7 @@ export default function NovaConsultaPage() {
     setData(prev => ({ ...prev, [key]: val }));
   }, []);
 
-  const toggleArr = useCallback((key: "qp" | "hpmaInicio" | "hpmaCurso" | "antClinico" | "antFamiliar" | "diferenciais" | "gravidade" | "especificadores" | "condutaPsico" | "condutaExames" | "condutaEncam" | "condutaSeguranca", val: string) => {
+  const toggleArr = useCallback((key: "qp" | "hpmaInicio" | "hpmaCurso" | "antClinico" | "antFamiliar" | "diferenciais" | "gravidade" | "especificadores" | "condutaPsico" | "condutaExames" | "condutaEncam" | "condutaSeguranca" | "sintomosAlvo", val: string) => {
     setData(prev => {
       const arr = prev[key] as string[];
       return { ...prev, [key]: arr.includes(val) ? arr.filter(v => v !== val) : [...arr, val] };
@@ -992,6 +1083,23 @@ export default function NovaConsultaPage() {
       advancedModules: { ...prev.advancedModules, [id]: !prev.advancedModules[id] },
     }));
   }, []);
+
+  // Persist module preferences across consultations
+  useEffect(() => {
+    const saved = localStorage.getItem("md-advanced-modules");
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved) as Record<string, boolean>;
+        setData(prev => ({ ...prev, advancedModules: parsed }));
+      } catch {}
+    }
+  }, []);
+
+  useEffect(() => {
+    if (Object.keys(data.advancedModules).length > 0) {
+      localStorage.setItem("md-advanced-modules", JSON.stringify(data.advancedModules));
+    }
+  }, [data.advancedModules]);
 
   async function copy(text: string, id: string) {
     await navigator.clipboard.writeText(text);
@@ -1297,6 +1405,18 @@ export default function NovaConsultaPage() {
           </FieldGroup>
           <TextInput label="Diagnósticos diferenciais (um por linha ou separados por vírgula)" value={data.diferenciais.join(", ")} onChange={v => set("diferenciais", v ? v.split(",").map(s => s.trim()).filter(Boolean) : [])} placeholder="Ex: TAB, Transtorno esquizoafetivo, Depressão por substância" />
         </Block>
+
+        {data.advancedModules["raciocinio-clinico"] && (
+          <Block title="Raciocínio Clínico Documentado">
+            <TextInput
+              label="Justificativa diagnóstica e terapêutica"
+              value={data.raciocinioCli}
+              onChange={v => set("raciocinioCli", v)}
+              placeholder="Ex: Quadro compatível com episódio depressivo grave com sintomas melancólicos, sem resposta à ISRS em dose adequada. Opta-se por IRSN em associação com…"
+              rows={4}
+            />
+          </Block>
+        )}
       </div>
     );
   }
@@ -1344,13 +1464,204 @@ export default function NovaConsultaPage() {
           <TextInput label="Prazo de retorno" value={data.condutaRetorno} onChange={v => set("condutaRetorno", v)} placeholder="Ex: 14 dias / 1 mês / antes se piora" />
           <TextInput label="Observações adicionais" value={data.condutaObs} onChange={v => set("condutaObs", v)} placeholder="Orientações específicas ao caso..." rows={2} />
         </Block>
+
+        {data.advancedModules["adesao"] && (
+          <Block title="Adesão ao Tratamento">
+            <FieldGroup label="Padrão de adesão atual">
+              {ADESAO_OPCOES.map(o => (
+                <Chip key={o} label={o} active={data.adesao === o} onClick={() => set("adesao", data.adesao === o ? "" : o)} />
+              ))}
+            </FieldGroup>
+          </Block>
+        )}
+
+        {data.advancedModules["sintomas-alvo"] && (
+          <Block title="Sintomas-Alvo para Monitoramento">
+            <FieldGroup label="Sintomas a acompanhar no retorno" multi>
+              {SINTOMAS_ALVO_OPCOES.map(o => (
+                <Chip key={o} label={o} active={data.sintomosAlvo.includes(o)} onClick={() => toggleArr("sintomosAlvo", o)} />
+              ))}
+            </FieldGroup>
+          </Block>
+        )}
+
+        {data.advancedModules["metas-retorno"] && (
+          <Block title="Metas até o Próximo Retorno">
+            <TextInput
+              label="Objetivos definidos com o paciente"
+              value={data.metasRetorno}
+              onChange={v => set("metasRetorno", v)}
+              placeholder="Ex: Iniciar medicação regularmente, dormir antes das 23h, retornar com exames solicitados."
+              rows={3}
+            />
+          </Block>
+        )}
       </div>
     );
   }
 
   function renderProntuario() {
+    const resumo = buildResumoInteligente(data);
+    const alertas = buildSinaisAlerta(data);
+    const nivelCuidado = buildNivelCuidado(data);
+    const qualidade = buildQualidadeProntuario(data);
+    const segurancaChecklist = [
+      { label: "Risco suicida formalmente avaliado", ok: (data.risco["suicida"] || []).length > 0 },
+      { label: "Uso de substâncias investigado", ok: Object.values(data.substancias).some(v => v.length > 0) },
+      { label: "Sintomas psicóticos investigados", ok: (data.eem["sensopercepcao"] || []).length > 0 || (data.eem["pens-conteudo"] || []).length > 0 },
+      { label: "CID-10 registrado", ok: !!data.diagnosticoPrincipal },
+      { label: "Conduta documentada", ok: !!data.condutaFarma || data.condutaPsico.length > 0 },
+      { label: "Retorno programado", ok: !!data.condutaRetorno },
+      { label: "Plano de segurança quando indicado", ok: data.condutaSeguranca.length > 0 || !(data.risco["suicida"] || []).some(r => !r.includes("Nega")) },
+    ];
+    const segurancaOk = segurancaChecklist.every(c => c.ok);
+
     return (
       <div className="space-y-4">
+
+        {/* Resumo Inteligente */}
+        {data.advancedModules["resumo-inteligente"] && (
+          <div className="bg-violet-500/5 border border-violet-500/20 rounded-2xl p-5 space-y-3">
+            <div className="flex items-center gap-2">
+              <Zap size={13} className="text-violet-600 shrink-0" />
+              <p className="text-xs font-bold text-violet-700 dark:text-violet-400">Resumo Clínico Inteligente</p>
+            </div>
+            <div className="grid grid-cols-2 gap-3 text-xs">
+              <div>
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-0.5">Síndrome / QP</p>
+                <p className="text-foreground">{resumo.sindrome}</p>
+              </div>
+              <div>
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-0.5">CID-10</p>
+                <p className="text-foreground">{resumo.cid}</p>
+              </div>
+              <div>
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-0.5">Nível de risco</p>
+                <p className="text-foreground">{resumo.risco}</p>
+              </div>
+              <div>
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-0.5">Conduta principal</p>
+                <p className="text-foreground">{resumo.condutaPrincipal}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Sinais de Alerta */}
+        {data.advancedModules["sinais-alerta"] && alertas.length > 0 && (
+          <div className="bg-rose-500/5 border border-rose-500/20 rounded-2xl p-5 space-y-3">
+            <div className="flex items-center gap-2">
+              <AlertTriangle size={13} className="text-rose-600 shrink-0" />
+              <p className="text-xs font-bold text-rose-700 dark:text-rose-400">Sinais de Alerta</p>
+            </div>
+            <ul className="space-y-2">
+              {alertas.map((a, i) => (
+                <li key={i} className="flex items-start gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0 mt-1.5" />
+                  <p className="text-xs text-foreground leading-relaxed">{a}</p>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {data.advancedModules["sinais-alerta"] && alertas.length === 0 && (
+          <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-2xl px-5 py-3 flex gap-3 items-center">
+            <Check size={13} className="text-emerald-600 shrink-0" />
+            <p className="text-xs text-emerald-700 dark:text-emerald-400">Nenhum sinal de alerta identificado nos dados preenchidos.</p>
+          </div>
+        )}
+
+        {/* Nível de Cuidado */}
+        {data.advancedModules["nivel-cuidado"] && (
+          <div className={cn(
+            "rounded-2xl p-5 space-y-2 border",
+            nivelCuidado.cor === "rose"   ? "bg-rose-500/5 border-rose-500/20"     :
+            nivelCuidado.cor === "orange" ? "bg-orange-500/5 border-orange-500/20" :
+            nivelCuidado.cor === "amber"  ? "bg-amber-500/5 border-amber-500/20"   :
+                                            "bg-emerald-500/5 border-emerald-500/20"
+          )}>
+            <div className="flex items-center gap-2">
+              <Info size={13} className={cn(
+                "shrink-0",
+                nivelCuidado.cor === "rose"   ? "text-rose-600"    :
+                nivelCuidado.cor === "orange" ? "text-orange-600"  :
+                nivelCuidado.cor === "amber"  ? "text-amber-600"   : "text-emerald-600"
+              )} />
+              <p className={cn(
+                "text-xs font-bold",
+                nivelCuidado.cor === "rose"   ? "text-rose-700 dark:text-rose-400"     :
+                nivelCuidado.cor === "orange" ? "text-orange-700 dark:text-orange-400" :
+                nivelCuidado.cor === "amber"  ? "text-amber-700 dark:text-amber-400"   :
+                                                "text-emerald-700 dark:text-emerald-400"
+              )}>Nível de Cuidado Recomendado</p>
+            </div>
+            <p className="text-sm font-bold text-foreground">{nivelCuidado.nivel}</p>
+            <p className="text-xs text-muted-foreground">{nivelCuidado.justificativa}</p>
+          </div>
+        )}
+
+        {/* Qualidade do Prontuário */}
+        {data.advancedModules["qualidade-prontuario"] && (
+          <div className="bg-card border border-border rounded-2xl p-5 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Star size={13} className="text-primary shrink-0" />
+                <p className="text-xs font-bold text-foreground">Qualidade do Prontuário</p>
+              </div>
+              <span className={cn(
+                "text-xs font-bold px-2 py-0.5 rounded-full",
+                qualidade.score >= 80 ? "bg-green-500/10 text-green-600" :
+                qualidade.score >= 50 ? "bg-amber-500/10 text-amber-600" :
+                                        "bg-rose-500/10 text-rose-600"
+              )}>{qualidade.score}% completo</span>
+            </div>
+            <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+              <div
+                className={cn(
+                  "h-full rounded-full transition-all duration-500",
+                  qualidade.score >= 80 ? "bg-green-500" : qualidade.score >= 50 ? "bg-amber-500" : "bg-rose-500"
+                )}
+                style={{ width: `${qualidade.score}%` }}
+              />
+            </div>
+            <div className="space-y-1.5">
+              {qualidade.items.map(item => (
+                <div key={item.label} className="flex items-center gap-2">
+                  {item.ok
+                    ? <Check size={11} className="text-green-500 shrink-0" />
+                    : <span className="inline-block w-2.5 h-2.5 rounded-full border border-muted-foreground/30 shrink-0" />}
+                  <span className={cn("text-[11px]", item.ok ? "text-foreground" : "text-muted-foreground/60")}>{item.label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Checklist de Segurança */}
+        {data.advancedModules["checklist-seguranca"] && (
+          <div className={cn(
+            "rounded-2xl p-5 space-y-3 border",
+            segurancaOk ? "bg-emerald-500/5 border-emerald-500/20" : "bg-amber-500/5 border-amber-500/20"
+          )}>
+            <div className="flex items-center gap-2">
+              <ClipboardCheck size={13} className={cn("shrink-0", segurancaOk ? "text-emerald-600" : "text-amber-600")} />
+              <p className={cn("text-xs font-bold", segurancaOk ? "text-emerald-700 dark:text-emerald-400" : "text-amber-700 dark:text-amber-400")}>
+                Checklist de Segurança{segurancaOk ? " — Completo" : " — Itens pendentes"}
+              </p>
+            </div>
+            <div className="space-y-2">
+              {segurancaChecklist.map(item => (
+                <div key={item.label} className="flex items-center gap-2">
+                  {item.ok
+                    ? <Check size={11} className="text-emerald-500 shrink-0" />
+                    : <AlertCircle size={11} className="text-amber-500 shrink-0" />}
+                  <span className={cn("text-[11px]", item.ok ? "text-foreground" : "text-amber-700 dark:text-amber-400 font-medium")}>{item.label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         <Block title="Escolha o layout do prontuário">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {LAYOUTS.map(l => (
