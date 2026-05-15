@@ -2,6 +2,7 @@
 
 import { Calendar } from "lucide-react";
 import { useAuth } from "@/components/providers/AuthProvider";
+import { useConsultasStats } from "@/lib/hooks/useConsultasStats";
 
 function getCurrentGreeting() {
   const hour = new Date().getHours();
@@ -15,6 +16,7 @@ const MONTHS = ["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov
 
 export function HeroBanner() {
   const { user } = useAuth();
+  const stats = useConsultasStats();
   const now  = new Date();
   const day  = DAYS[now.getDay()];
   const date = `${now.getDate()} ${MONTHS[now.getMonth()]} ${now.getFullYear()}`;
@@ -49,9 +51,9 @@ export function HeroBanner() {
 
       <div className="flex gap-6 mt-4 pt-4 border-t border-white/15 relative z-10">
         {[
-          { label: "Consultas hoje",    value: "8" },
-          { label: "Escalas pendentes", value: "3" },
-          { label: "Urgências",         value: "1" },
+          { label: "Consultas hoje",   value: stats.loading ? "…" : String(stats.hoje) },
+          { label: "Esta semana",      value: stats.loading ? "…" : String(stats.semana) },
+          { label: "Este mês",         value: stats.loading ? "…" : String(stats.mes) },
         ].map((s) => (
           <div key={s.label}>
             <span className="block text-xl font-bold">{s.value}</span>

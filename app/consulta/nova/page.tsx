@@ -6,10 +6,12 @@ import {
   ChevronDown, ChevronUp, AlertCircle, FileText, ClipboardList,
   Stethoscope, Brain, Shield, Pill, History, User, MessageSquare,
   ClipboardCheck, FileOutput, Users, AlertTriangle, BookOpen,
-  Settings2, Zap, Info, Star,
+  Settings2, Zap, Info, Star, Search,
 } from "lucide-react";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
+import { useAuth } from "@/components/providers/AuthProvider";
+import { saveConsulta, getConsultas, type ConsultaRecord } from "@/lib/firebase/consultas";
 import { cn } from "@/lib/utils";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -957,6 +959,89 @@ function TextInput({ label, value, onChange, placeholder, rows }: { label: strin
   );
 }
 
+// ─── Patient Search Panel ─────────────────────────────────────────────────────
+
+function PatientSearchPanel({ onSelect }: {
+  onSelect: (record: ConsultaRecord) => void;
+}) {
+  const { user } = useAuth();
+  const [open, setOpen] = useState(false);
+  const [consultas, setConsultas] = useState<ConsultaRecord[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [query, setQuery] = useState("");
+
+  useEffect(() => {
+    if (!user || !open || consultas.length > 0) return;
+    setLoading(true);
+    getConsultas(user.uid)
+      .then(data => { setConsultas(data); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, [user, open, consultas.length]);
+
+  const filtered = consultas.filter(c =>
+    !query || c.patientName?.toLowerCase().includes(query.toLowerCase())
+  );
+
+  return (
+    <div className="bg-card border border-border rounded-2xl overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setOpen(v => !v)}
+        className="w-full flex items-center gap-3 px-5 py-3.5 hover:bg-muted/20 transition-colors text-left"
+      >
+        <Search size={14} className="text-primary shrink-0" />
+        <div className="flex-1">
+          <p className="text-xs font-semibold text-foreground">Buscar paciente anterior</p>
+          <p className="text-[11px] text-muted-foreground">Pré-preenche dados da última consulta registrada</p>
+        </div>
+        {open ? <ChevronUp size={14} className="text-muted-foreground" /> : <ChevronDown size={14} className="text-muted-foreground" />}
+      </button>
+      {open && (
+        <div className="border-t border-border p-4 space-y-3">
+          <div className="relative">
+            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <input
+              type="text"
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              placeholder="Nome do paciente..."
+              className="w-full bg-background border border-border rounded-xl pl-8 pr-3 py-2 text-xs text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/30"
+            />
+          </div>
+          {loading && <p className="text-xs text-muted-foreground text-center py-2">Carregando...</p>}
+          {!loading && filtered.length === 0 && (
+            <p className="text-xs text-muted-foreground text-center py-2">
+              {query ? "Nenhum paciente encontrado" : "Nenhuma consulta anterior registrada"}
+            </p>
+          )}
+          {!loading && filtered.slice(0, 6).map(c => (
+            <button
+              key={c.id}
+              type="button"
+              onClick={() => { onSelect(c); setOpen(false); setQuery(""); }}
+              className="w-full flex items-center gap-3 p-3 rounded-xl border border-border hover:border-primary/30 hover:bg-primary/5 transition-all text-left"
+            >
+              <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                <User size={14} className="text-primary" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold text-foreground truncate">
+                  {c.patientName || "Paciente sem identificação"}
+                </p>
+                <p className="text-[11px] text-muted-foreground truncate">
+                  {c.diagnosticoPrincipal || c.tipo}
+                  {c.condutaFarma ? ` · ${c.condutaFarma.slice(0, 40)}…` : ""}
+                </p>
+              </div>
+              <ChevronRight size={12} className="text-muted-foreground/40 shrink-0" />
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Advanced Module Helpers ──────────────────────────────────────────────────
 
 function buildResumoInteligente(d: ConsultaState) {
@@ -1043,11 +1128,15 @@ function buildQualidadeProntuario(d: ConsultaState): { score: number; items: { l
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function NovaConsultaPage() {
+  const { user } = useAuth();
   const [step, setStep] = useState(0);
   const [data, setData] = useState<ConsultaState>(INITIAL);
   const [copied, setCopied] = useState<string | false>(false);
   const [docAberto, setDocAberto] = useState<string | null>(null);
   const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [prevOpen, setPrevOpen] = useState(false);
+  const [consultaId, setConsultaId] = useState<string | null>(null);
+  const [prevState, setPrevState] = useState<ConsultaState | null>(null);
 
   const set = useCallback(<K extends keyof ConsultaState>(key: K, val: ConsultaState[K]) => {
     setData(prev => ({ ...prev, [key]: val }));
@@ -1101,6 +1190,48 @@ export default function NovaConsultaPage() {
     }
   }, [data.advancedModules]);
 
+  // Pre-fill from "Usar como base de retorno" in historico page
+  useEffect(() => {
+    const retornoRaw = sessionStorage.getItem("md-retorno-state");
+    if (!retornoRaw) return;
+    try {
+      const prev = JSON.parse(retornoRaw) as ConsultaState;
+      setPrevState(prev);
+      setData(current => ({
+        ...INITIAL,
+        ident: prev.ident || {},
+        antPsi: prev.antPsi || {},
+        antClinico: prev.antClinico || [],
+        antFamiliar: prev.antFamiliar || [],
+        antDetalhes: prev.antDetalhes || "",
+        substancias: prev.substancias || {},
+        muc: prev.condutaFarma || "",
+        ttoPrevio: prev.ttoPrevio || "",
+        alergias: prev.alergias || "",
+        advancedModules: current.advancedModules,
+      }));
+    } catch {}
+    sessionStorage.removeItem("md-retorno-state");
+    sessionStorage.removeItem("md-retorno-id");
+  }, []);
+
+  const onSelectPatient = useCallback((record: ConsultaRecord) => {
+    const prev = record.state as unknown as ConsultaState;
+    setPrevState(prev);
+    setData(current => ({
+      ...current,
+      ident: (prev.ident as Fields) || {},
+      antPsi: (prev.antPsi as Sels) || {},
+      antClinico: (prev.antClinico as string[]) || [],
+      antFamiliar: (prev.antFamiliar as string[]) || [],
+      antDetalhes: (prev.antDetalhes as string) || "",
+      substancias: (prev.substancias as Sels) || {},
+      muc: (prev.condutaFarma as string) || "",
+      ttoPrevio: (prev.ttoPrevio as string) || "",
+      alergias: (prev.alergias as string) || "",
+    }));
+  }, []);
+
   async function copy(text: string, id: string) {
     await navigator.clipboard.writeText(text);
     setCopied(id);
@@ -1114,6 +1245,19 @@ export default function NovaConsultaPage() {
 
   function handleConfirm() {
     set("prontuarioConfirmado", true);
+    if (user) {
+      saveConsulta({
+        userId: user.uid,
+        patientName: data.ident.nome || "Paciente sem identificação",
+        tipo: data.tipo,
+        diagnosticoPrincipal: data.diagnosticoPrincipal,
+        nivelRisco: data.nivelRisco,
+        condutaFarma: data.condutaFarma,
+        prontuarioBase: data.prontuarioBase,
+        state: data as unknown as Record<string, unknown>,
+        completed: true,
+      }).then(id => setConsultaId(id)).catch(console.error);
+    }
     setStep(8);
   }
 
@@ -1147,6 +1291,21 @@ export default function NovaConsultaPage() {
     const setF = (key: string, val: string) => set("ident", { ...data.ident, [key]: val });
     return (
       <div className="space-y-4">
+        <PatientSearchPanel onSelect={onSelectPatient} />
+        {prevState && (
+          <div className="bg-amber-500/5 border border-amber-500/20 rounded-2xl px-4 py-3 flex gap-3 items-start">
+            <History size={13} className="text-amber-600 shrink-0 mt-0.5" />
+            <div>
+              <p className="text-xs font-semibold text-amber-700 dark:text-amber-400">
+                Dados pré-preenchidos da última consulta
+                {prevState.ident?.nome ? ` de ${prevState.ident.nome}` : ""}
+              </p>
+              <p className="text-[11px] text-amber-600/80 mt-0.5">
+                Revise e atualize as informações conforme a consulta atual.
+              </p>
+            </div>
+          </div>
+        )}
         <Block>
           <div className="grid grid-cols-2 gap-4">
             <TextInput label="Nome (opcional)" value={f("nome")} onChange={v => setF("nome", v)} placeholder="Nome do paciente" />
@@ -1659,6 +1818,47 @@ export default function NovaConsultaPage() {
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* Consulta anterior de referência */}
+        {prevState && (
+          <div className="bg-card border border-border rounded-2xl overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setPrevOpen(v => !v)}
+              className="w-full flex items-center gap-3 px-5 py-3.5 hover:bg-muted/20 transition-colors text-left"
+            >
+              <History size={14} className="text-primary shrink-0" />
+              <div className="flex-1">
+                <p className="text-xs font-bold text-foreground">Consulta anterior de referência</p>
+                <p className="text-[11px] text-muted-foreground">
+                  {prevState.ident?.nome ? `Paciente: ${prevState.ident.nome}` : "Paciente sem identificação"}
+                  {prevState.diagnosticoPrincipal ? ` · ${prevState.diagnosticoPrincipal}` : ""}
+                </p>
+              </div>
+              {prevOpen ? <ChevronUp size={14} className="text-muted-foreground" /> : <ChevronDown size={14} className="text-muted-foreground" />}
+            </button>
+            {prevOpen && (
+              <div className="border-t border-border p-5 space-y-3">
+                {prevState.condutaFarma && (
+                  <div>
+                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">Prescrição anterior</p>
+                    <pre className="text-[11px] text-foreground whitespace-pre-wrap font-sans bg-muted/30 border border-border rounded-xl px-3 py-2 leading-relaxed">
+                      {prevState.condutaFarma}
+                    </pre>
+                  </div>
+                )}
+                {prevState.prontuarioBase && (
+                  <div>
+                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">Prontuário anterior</p>
+                    <pre className="text-[11px] text-foreground whitespace-pre-wrap font-sans bg-muted/30 border border-border rounded-xl px-3 py-2 leading-relaxed max-h-48 overflow-y-auto">
+                      {prevState.prontuarioBase}
+                    </pre>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 
