@@ -1190,6 +1190,10 @@ export default function NovaConsultaPage() {
     }
   }, [data.advancedModules]);
 
+  useEffect(() => {
+    document.querySelector("main")?.scrollTo({ top: 0, behavior: "instant" });
+  }, [step]);
+
   // Pre-fill from "Usar como base de retorno" in historico page
   useEffect(() => {
     const retornoRaw = sessionStorage.getItem("md-retorno-state");
