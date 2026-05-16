@@ -3,7 +3,6 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/providers/AuthProvider";
-import { GooeyLoader } from "@/components/ui/gooey-loader";
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -15,16 +14,9 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     }
   }, [user, loading, router]);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-6 bg-background">
-        <GooeyLoader />
-        <p className="text-sm text-muted-foreground">Carregando...</p>
-      </div>
-    );
-  }
-
-  if (!user) return null;
+  // Render immediately — Firebase resolves auth from IndexedDB within ~200ms.
+  // Unauthenticated users are redirected via useEffect before Firestore data loads.
+  if (!loading && !user) return null;
 
   return <>{children}</>;
 }
