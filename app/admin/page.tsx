@@ -35,6 +35,7 @@ import {
   createAnuncio,
   toggleAnuncio,
   deleteAnuncio,
+  DEFAULT_CONFIG,
   type AppConfig,
   type Anuncio,
 } from "@/lib/firebase/appConfig";
@@ -365,30 +366,33 @@ export default function AdminPage() {
   });
   const [creatingAnuncio, setCreatingAnuncio] = useState(false);
 
-  // ── Lazy load per tab ────────────────────────────────────────────────────
+  // ── Load data ────────────────────────────────────────────────────────────
 
-  const fetched = useRef({ overview: false, configuracoes: false, comunicados: false });
+  // Config and anuncios are cheap (single doc / small collection) — load eagerly.
+  // Users is a full collection scan — load lazily on first visit to that tab.
+
+  useEffect(() => {
+    getAppConfig()
+      .then((c) => { setConfig(c); setConfigDraft(c); })
+      .catch(() => { setConfig(DEFAULT_CONFIG); setConfigDraft(DEFAULT_CONFIG); })
+      .finally(() => setConfigLoading(false));
+  }, []);
+
+  useEffect(() => {
+    getAnuncios()
+      .then(setAnuncios)
+      .catch(() => setAnuncios([]))
+      .finally(() => setAnunciosLoading(false));
+  }, []);
+
+  const usersFetched = useRef(false);
 
   useEffect(() => {
     if (tab !== "overview" && tab !== "usuarios") return;
-    if (fetched.current.overview) return;
-    fetched.current.overview = true;
-    getAllUsers().then(setUsers).finally(() => setUsersLoading(false));
-    getAllConsultasCount().then(setConsultasCount).finally(() => setConsultasLoading(false));
-  }, [tab]);
-
-  useEffect(() => {
-    if (tab !== "configuracoes") return;
-    if (fetched.current.configuracoes) return;
-    fetched.current.configuracoes = true;
-    getAppConfig().then((c) => { setConfig(c); setConfigDraft(c); }).finally(() => setConfigLoading(false));
-  }, [tab]);
-
-  useEffect(() => {
-    if (tab !== "comunicados") return;
-    if (fetched.current.comunicados) return;
-    fetched.current.comunicados = true;
-    getAnuncios().then(setAnuncios).finally(() => setAnunciosLoading(false));
+    if (usersFetched.current) return;
+    usersFetched.current = true;
+    getAllUsers().then(setUsers).catch(() => setUsers([])).finally(() => setUsersLoading(false));
+    getAllConsultasCount().then(setConsultasCount).catch(() => {}).finally(() => setConsultasLoading(false));
   }, [tab]);
 
   // ── Derived stats ─────────────────────────────────────────────────────────
