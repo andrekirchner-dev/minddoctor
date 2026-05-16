@@ -3,7 +3,9 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import type { User } from "firebase/auth";
 import { onAuthChange } from "@/lib/firebase/auth";
-import { getUserProfile, type UserProfile } from "@/lib/firebase/firestore";
+import { getUserProfile, upsertUserProfile, type UserProfile } from "@/lib/firebase/firestore";
+
+const ADMIN_EMAILS = ["kirchner.andre@gmail.com"];
 
 interface AuthContextValue {
   user: User | null;
@@ -40,8 +42,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return unsubscribe;
   }, []);
 
+  const isAdmin =
+    profile?.role === "admin" ||
+    ADMIN_EMAILS.includes(user?.email?.toLowerCase() ?? "");
+
   return (
-    <AuthContext.Provider value={{ user, profile, isAdmin: profile?.role === "admin", loading }}>
+    <AuthContext.Provider value={{ user, profile, isAdmin, loading }}>
       {children}
     </AuthContext.Provider>
   );

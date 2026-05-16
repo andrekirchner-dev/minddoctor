@@ -1,12 +1,13 @@
 "use client";
 
-import { MapPin, Pencil, Crown } from "lucide-react";
+import { MapPin, Pencil, Crown, ShieldCheck } from "lucide-react";
+import Link from "next/link";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/components/providers/AuthProvider";
 
 export function ProfileCard() {
-  const { user, profile } = useAuth();
+  const { user, profile, isAdmin } = useAuth();
 
   const name     = user?.displayName ?? "Usuário";
   const email    = user?.email ?? "";
@@ -55,6 +56,19 @@ export function ProfileCard() {
         <MapPin size={11} />
         <span>Brasil</span>
       </div>
+
+      {isAdmin && (
+        <>
+          <div className="h-px bg-border my-4" />
+          <Link
+            href="/admin"
+            className="flex items-center justify-center gap-1.5 text-xs font-medium text-[#7B5EA7] hover:text-[#6a4f94] transition-colors"
+          >
+            <ShieldCheck size={13} />
+            Painel Admin
+          </Link>
+        </>
+      )}
     </div>
   );
 }
