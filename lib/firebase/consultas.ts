@@ -1,6 +1,6 @@
 import {
   collection, addDoc, updateDoc, deleteDoc, doc, getDoc,
-  query, where, getDocs, serverTimestamp, type Timestamp,
+  query, where, getDocs, serverTimestamp, getCountFromServer, Timestamp,
 } from "firebase/firestore";
 import { db } from "./config";
 
@@ -53,17 +53,13 @@ export async function deleteConsulta(id: string): Promise<void> {
 }
 
 export async function getAllConsultasCount(): Promise<{ total: number; mes: number }> {
-  const snap = await getDocs(collection(db, "consultas"));
-  const now = new Date();
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-  const startSeconds = Math.floor(startOfMonth.getTime() / 1000);
-
-  let mes = 0;
-  for (const d of snap.docs) {
-    const data = d.data() as { createdAt?: { seconds: number } };
-    if (data.createdAt && data.createdAt.seconds >= startSeconds) {
-      mes++;
-    }
-  }
-  return { total: snap.size, mes };
+  const col = collection(db, "consultas");
+  const startOfMonth = Timestamp.fromDate(
+    new Date(new Date().getFullYear(), new Date().getMonth(), 1)
+  );
+  const [totalSnap, mesSnap] = await Promise.all([
+    getCountFromServer(col),
+    getCountFromServer(query(col, where("createdAt", ">=", startOfMonth))),
+  ]);
+  return { total: totalSnap.data().count, mes: mesSnap.data().count };
 }

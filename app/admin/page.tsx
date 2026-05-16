@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import {
   Users,
   ShieldCheck,
@@ -365,34 +365,31 @@ export default function AdminPage() {
   });
   const [creatingAnuncio, setCreatingAnuncio] = useState(false);
 
-  // ── Load data ────────────────────────────────────────────────────────────
+  // ── Lazy load per tab ────────────────────────────────────────────────────
+
+  const fetched = useRef({ overview: false, configuracoes: false, comunicados: false });
 
   useEffect(() => {
-    getAllUsers()
-      .then((u) => setUsers(u))
-      .finally(() => setUsersLoading(false));
-  }, []);
+    if (tab !== "overview" && tab !== "usuarios") return;
+    if (fetched.current.overview) return;
+    fetched.current.overview = true;
+    getAllUsers().then(setUsers).finally(() => setUsersLoading(false));
+    getAllConsultasCount().then(setConsultasCount).finally(() => setConsultasLoading(false));
+  }, [tab]);
 
   useEffect(() => {
-    getAllConsultasCount()
-      .then(setConsultasCount)
-      .finally(() => setConsultasLoading(false));
-  }, []);
+    if (tab !== "configuracoes") return;
+    if (fetched.current.configuracoes) return;
+    fetched.current.configuracoes = true;
+    getAppConfig().then((c) => { setConfig(c); setConfigDraft(c); }).finally(() => setConfigLoading(false));
+  }, [tab]);
 
   useEffect(() => {
-    getAppConfig()
-      .then((c) => {
-        setConfig(c);
-        setConfigDraft(c);
-      })
-      .finally(() => setConfigLoading(false));
-  }, []);
-
-  useEffect(() => {
-    getAnuncios()
-      .then(setAnuncios)
-      .finally(() => setAnunciosLoading(false));
-  }, []);
+    if (tab !== "comunicados") return;
+    if (fetched.current.comunicados) return;
+    fetched.current.comunicados = true;
+    getAnuncios().then(setAnuncios).finally(() => setAnunciosLoading(false));
+  }, [tab]);
 
   // ── Derived stats ─────────────────────────────────────────────────────────
 
