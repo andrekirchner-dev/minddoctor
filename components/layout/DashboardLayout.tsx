@@ -2,6 +2,7 @@ import { Sidebar } from "./Sidebar";
 import { Header } from "./Header";
 import { ProfileCard } from "@/components/right-panel/ProfileCard";
 import { CalendarCard } from "@/components/right-panel/CalendarCard";
+import { GlobalBanner } from "@/components/admin/GlobalBanner";
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -13,6 +14,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <Header />
         <main className="flex-1 overflow-y-auto">
+          <GlobalBanner />
           <div className="flex gap-6 p-6 min-h-full">
             {/* Central content */}
             <div className="flex-1 min-w-0 flex flex-col gap-5">

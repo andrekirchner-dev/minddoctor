@@ -45,3 +45,19 @@ export async function getConsultas(userId: string): Promise<ConsultaRecord[]> {
 export async function deleteConsulta(id: string): Promise<void> {
   await deleteDoc(doc(db, "consultas", id));
 }
+
+export async function getAllConsultasCount(): Promise<{ total: number; mes: number }> {
+  const snap = await getDocs(collection(db, "consultas"));
+  const now = new Date();
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const startSeconds = Math.floor(startOfMonth.getTime() / 1000);
+
+  let mes = 0;
+  for (const d of snap.docs) {
+    const data = d.data() as { createdAt?: { seconds: number } };
+    if (data.createdAt && data.createdAt.seconds >= startSeconds) {
+      mes++;
+    }
+  }
+  return { total: snap.size, mes };
+}
