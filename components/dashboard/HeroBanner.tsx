@@ -51,12 +51,16 @@ export function HeroBanner() {
 
       <div className="flex gap-6 mt-4 pt-4 border-t border-white/15 relative z-10">
         {[
-          { label: "Consultas hoje",   value: stats.loading ? "…" : String(stats.hoje) },
-          { label: "Esta semana",      value: stats.loading ? "…" : String(stats.semana) },
-          { label: "Este mês",         value: stats.loading ? "…" : String(stats.mes) },
+          { label: "Consultas hoje", value: stats.hoje },
+          { label: "Esta semana",    value: stats.semana },
+          { label: "Este mês",       value: stats.mes },
         ].map((s) => (
           <div key={s.label}>
-            <span className="block text-xl font-bold">{s.value}</span>
+            {stats.loading ? (
+              <div className="h-7 w-6 rounded bg-white/20 animate-pulse mb-0.5" />
+            ) : (
+              <span className="block text-xl font-bold">{s.value}</span>
+            )}
             <span className="text-white/70 text-xs">{s.label}</span>
           </div>
         ))}

@@ -24,14 +24,20 @@ const TIPO_ICONS: Record<BannerTipo, React.ElementType> = {
 
 const MANUTENCAO_STYLE = "bg-amber-50 border-amber-300 text-amber-900 dark:bg-amber-950/50 dark:border-amber-700 dark:text-amber-100";
 
+// Module-level cache — survives client-side navigations within the session.
+let configCache: AppConfig | null = null;
+
 export function GlobalBanner() {
   const { isAdmin } = useAuth();
-  const [config, setConfig] = useState<AppConfig | null>(null);
+  const [config, setConfig] = useState<AppConfig | null>(configCache);
   const [dismissed, setDismissed] = useState(false);
   const [manutencaoDismissed, setManutencaoDismissed] = useState(false);
 
   useEffect(() => {
-    getAppConfig().then(setConfig).catch(() => setConfig(null));
+    if (configCache) return; // already fetched this session
+    getAppConfig()
+      .then(c => { configCache = c; setConfig(c); })
+      .catch(() => {});
   }, []);
 
   if (!config) return null;
@@ -44,21 +50,12 @@ export function GlobalBanner() {
   return (
     <div className="flex flex-col gap-1 px-6 pt-2">
       {showMaintenanceBanner && (
-        <div
-          className={cn(
-            "flex items-center gap-3 px-4 py-2.5 rounded-xl border text-sm font-medium",
-            MANUTENCAO_STYLE
-          )}
-        >
+        <div className={cn("flex items-center gap-3 px-4 py-2.5 rounded-xl border text-sm font-medium", MANUTENCAO_STYLE)}>
           <Wrench size={16} className="shrink-0" />
           <span className="flex-1">
             O sistema está em manutenção. Algumas funcionalidades podem estar indisponíveis.
           </span>
-          <button
-            onClick={() => setManutencaoDismissed(true)}
-            className="shrink-0 p-0.5 rounded hover:opacity-70 transition-opacity"
-            aria-label="Fechar"
-          >
+          <button onClick={() => setManutencaoDismissed(true)} className="shrink-0 p-0.5 rounded hover:opacity-70 transition-opacity" aria-label="Fechar">
             <X size={14} />
           </button>
         </div>
@@ -67,29 +64,15 @@ export function GlobalBanner() {
       {showCustomBanner && (() => {
         const Icon = TIPO_ICONS[config.banner.tipo];
         return (
-          <div
-            className={cn(
-              "flex items-center gap-3 px-4 py-2.5 rounded-xl border text-sm font-medium",
-              TIPO_STYLES[config.banner.tipo]
-            )}
-          >
+          <div className={cn("flex items-center gap-3 px-4 py-2.5 rounded-xl border text-sm font-medium", TIPO_STYLES[config.banner.tipo])}>
             <Icon size={16} className="shrink-0" />
             <span className="flex-1">{config.banner.mensagem}</span>
             {config.banner.link && (
-              <a
-                href={config.banner.link}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="shrink-0 underline underline-offset-2 hover:opacity-80 transition-opacity text-xs font-semibold"
-              >
+              <a href={config.banner.link} target="_blank" rel="noopener noreferrer" className="shrink-0 underline underline-offset-2 hover:opacity-80 transition-opacity text-xs font-semibold">
                 {config.banner.linkLabel || "Saiba mais"}
               </a>
             )}
-            <button
-              onClick={() => setDismissed(true)}
-              className="shrink-0 p-0.5 rounded hover:opacity-70 transition-opacity"
-              aria-label="Fechar banner"
-            >
+            <button onClick={() => setDismissed(true)} className="shrink-0 p-0.5 rounded hover:opacity-70 transition-opacity" aria-label="Fechar banner">
               <X size={14} />
             </button>
           </div>

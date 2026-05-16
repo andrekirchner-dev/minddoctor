@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { getConsultas, type ConsultaRecord } from "@/lib/firebase/consultas";
 
@@ -13,16 +13,20 @@ export interface ConsultasStats {
   loading: boolean;
 }
 
+const DEFAULT_STATS: ConsultasStats = {
+  hoje: 0, semana: 0, mes: 0, total: 0, recentes: [], loading: true,
+};
+
+const ConsultasStatsContext = createContext<ConsultasStats>(DEFAULT_STATS);
+
 function toDate(c: ConsultaRecord): Date {
   const secs = c.createdAt?.seconds;
   return secs ? new Date(secs * 1000) : new Date(0);
 }
 
-export function useConsultasStats(): ConsultasStats {
+export function ConsultasStatsProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
-  const [stats, setStats] = useState<ConsultasStats>({
-    hoje: 0, semana: 0, mes: 0, total: 0, recentes: [], loading: true,
-  });
+  const [stats, setStats] = useState<ConsultasStats>(DEFAULT_STATS);
 
   useEffect(() => {
     if (!user) {
@@ -40,10 +44,10 @@ export function useConsultasStats(): ConsultasStats {
         const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
         setStats({
-          hoje:   consultas.filter(c => toDate(c) >= startOfDay).length,
-          semana: consultas.filter(c => toDate(c) >= startOfWeek).length,
-          mes:    consultas.filter(c => toDate(c) >= startOfMonth).length,
-          total:  consultas.length,
+          hoje:    consultas.filter(c => toDate(c) >= startOfDay).length,
+          semana:  consultas.filter(c => toDate(c) >= startOfWeek).length,
+          mes:     consultas.filter(c => toDate(c) >= startOfMonth).length,
+          total:   consultas.length,
           recentes: consultas.slice(0, 5),
           loading: false,
         });
@@ -51,5 +55,13 @@ export function useConsultasStats(): ConsultasStats {
       .catch(() => setStats(s => ({ ...s, loading: false })));
   }, [user]);
 
-  return stats;
+  return (
+    <ConsultasStatsContext.Provider value={stats}>
+      {children}
+    </ConsultasStatsContext.Provider>
+  );
+}
+
+export function useConsultasStats(): ConsultasStats {
+  return useContext(ConsultasStatsContext);
 }

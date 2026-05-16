@@ -20,6 +20,19 @@ function formatDate(seconds: number): string {
   return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
 }
 
+function RowSkeleton() {
+  return (
+    <div className="flex items-center gap-3 p-3 rounded-xl border border-border">
+      <div className="w-8 h-8 rounded-lg bg-muted animate-pulse shrink-0" />
+      <div className="flex-1 space-y-1.5">
+        <div className="h-3 w-32 rounded bg-muted animate-pulse" />
+        <div className="h-2.5 w-24 rounded bg-muted animate-pulse" />
+      </div>
+      <div className="h-2.5 w-8 rounded bg-muted animate-pulse" />
+    </div>
+  );
+}
+
 export function PlansDone() {
   const { recentes, loading, total } = useConsultasStats();
 
@@ -27,7 +40,7 @@ export function PlansDone() {
     <div className="bg-card rounded-2xl p-5 shadow-[0_4px_20px_rgba(74,108,247,0.08)] border border-border hover:-translate-y-0.5 hover:shadow-[0_8px_30px_rgba(74,108,247,0.13)] transition-all duration-200 flex flex-col">
       <div className="flex items-center justify-between mb-4">
         <h3 className="font-semibold text-foreground text-sm">Consultas Recentes</h3>
-        {total > 0 && (
+        {!loading && total > 0 && (
           <Link href="/consulta/historico" className="text-[11px] text-primary hover:underline font-medium">
             Ver todas ({total})
           </Link>
@@ -35,8 +48,10 @@ export function PlansDone() {
       </div>
 
       {loading && (
-        <div className="flex-1 flex items-center justify-center">
-          <p className="text-xs text-muted-foreground">Carregando...</p>
+        <div className="flex flex-col gap-2 flex-1">
+          <RowSkeleton />
+          <RowSkeleton />
+          <RowSkeleton />
         </div>
       )}
 

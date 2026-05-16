@@ -18,9 +18,9 @@ export function ScheduledEvents() {
   const offset = CIRC - (pct / 100) * CIRC;
 
   const events = [
-    { icon: ClipboardList, label: "Consultas",      value: count,        color: "#4A6CF7" },
-    { icon: CalendarCheck, label: "Este mês",        value: stats.mes,    color: "#7B5EA7" },
-    { icon: TrendingUp,    label: "Total acumulado", value: stats.total,  color: "#22C55E" },
+    { icon: ClipboardList, label: "Consultas",      value: count,       color: "#4A6CF7" },
+    { icon: CalendarCheck, label: "Este mês",        value: stats.mes,   color: "#7B5EA7" },
+    { icon: TrendingUp,    label: "Total acumulado", value: stats.total, color: "#22C55E" },
   ];
 
   return (
@@ -33,9 +33,7 @@ export function ScheduledEvents() {
               key={f}
               onClick={() => setActive(f)}
               className={`px-3 py-1 text-xs rounded-lg font-medium transition-colors ${
-                active === f
-                  ? "bg-primary text-white shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
+                active === f ? "bg-primary text-white shadow-sm" : "text-muted-foreground hover:text-foreground"
               }`}
             >
               {f}
@@ -68,10 +66,14 @@ export function ScheduledEvents() {
             </defs>
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className="text-xl font-bold text-foreground font-mono">
-              {stats.loading ? "…" : count}
-            </span>
-            <span className="text-[10px] text-muted-foreground leading-none">consultas</span>
+            {stats.loading ? (
+              <div className="h-6 w-6 rounded bg-muted animate-pulse" />
+            ) : (
+              <>
+                <span className="text-xl font-bold text-foreground font-mono">{count}</span>
+                <span className="text-[10px] text-muted-foreground leading-none">consultas</span>
+              </>
+            )}
           </div>
         </div>
 
@@ -85,9 +87,11 @@ export function ScheduledEvents() {
               <div className="flex-1 min-w-0">
                 <p className="text-xs text-muted-foreground">{label}</p>
               </div>
-              <span className="text-sm font-bold text-foreground font-mono">
-                {stats.loading ? "…" : value}
-              </span>
+              {stats.loading ? (
+                <div className="h-4 w-6 rounded bg-muted animate-pulse" />
+              ) : (
+                <span className="text-sm font-bold text-foreground font-mono">{value}</span>
+              )}
             </div>
           ))}
         </div>
