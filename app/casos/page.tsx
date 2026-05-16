@@ -137,6 +137,59 @@ function Field({ label, sensitive, children }: {
 const inputCls = "w-full px-3 py-2.5 rounded-xl text-sm bg-background border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 transition-shadow";
 const textareaCls = `${inputCls} resize-none`;
 
+// ─── Skeletons ────────────────────────────────────────────────────────────────
+
+function PatientCardSkeleton() {
+  return (
+    <div className="bg-card border border-border rounded-2xl p-5 space-y-3 animate-pulse">
+      <div className="flex items-center gap-3">
+        <div className="w-10 h-10 rounded-xl bg-muted shrink-0" />
+        <div className="flex-1 space-y-1.5">
+          <div className="h-3.5 w-32 rounded bg-muted" />
+          <div className="h-2.5 w-16 rounded bg-muted" />
+        </div>
+      </div>
+      <div className="space-y-1.5">
+        <div className="h-3 w-24 rounded bg-muted" />
+        <div className="h-2.5 w-full rounded bg-muted" />
+        <div className="h-2.5 w-3/4 rounded bg-muted" />
+      </div>
+      <div className="flex items-center justify-between pt-1">
+        <div className="flex items-center gap-1.5">
+          <div className="h-2.5 w-16 rounded bg-muted" />
+          <div className="h-2.5 w-20 rounded bg-muted" />
+        </div>
+        <div className="h-3.5 w-3.5 rounded bg-muted" />
+      </div>
+    </div>
+  );
+}
+
+function CasoCardSkeleton() {
+  return (
+    <div className="bg-card border border-border rounded-2xl p-5 space-y-3 animate-pulse">
+      <div className="flex items-start justify-between gap-2">
+        <div className="h-4 w-3/4 rounded bg-muted" />
+        <div className="h-5 w-20 rounded-full bg-muted shrink-0" />
+      </div>
+      <div className="h-3 w-1/2 rounded bg-muted" />
+      <div className="space-y-1.5">
+        <div className="h-3 w-full rounded bg-muted" />
+        <div className="h-3 w-5/6 rounded bg-muted" />
+      </div>
+      <div className="flex gap-1.5">
+        <div className="h-5 w-14 rounded-full bg-muted" />
+        <div className="h-5 w-18 rounded-full bg-muted" />
+        <div className="h-5 w-12 rounded-full bg-muted" />
+      </div>
+      <div className="flex items-center justify-between pt-1">
+        <div className="h-2.5 w-16 rounded bg-muted" />
+        <div className="h-3 w-20 rounded bg-muted" />
+      </div>
+    </div>
+  );
+}
+
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function CasosPage() {
@@ -400,13 +453,7 @@ export default function CasosPage() {
                 {/* Loading */}
                 {consultasLoading && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {[1, 2, 3].map(i => (
-                      <div key={i} className="animate-pulse bg-card border border-border rounded-2xl p-5 space-y-3">
-                        <div className="h-4 w-2/3 rounded bg-muted" />
-                        <div className="h-3 w-1/2 rounded bg-muted" />
-                        <div className="h-3 w-full rounded bg-muted" />
-                      </div>
-                    ))}
+                    {Array.from({ length: 6 }).map((_, i) => <PatientCardSkeleton key={i} />)}
                   </div>
                 )}
 
@@ -546,17 +593,7 @@ export default function CasosPage() {
           {/* Loading */}
           {loading && (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="animate-pulse bg-card border border-border rounded-2xl p-5 space-y-3">
-                  <div className="h-4 w-3/4 rounded bg-muted" />
-                  <div className="h-3 w-1/2 rounded bg-muted" />
-                  <div className="h-3 w-full rounded bg-muted" />
-                  <div className="flex gap-1.5">
-                    <div className="h-5 w-12 rounded-full bg-muted" />
-                    <div className="h-5 w-16 rounded-full bg-muted" />
-                  </div>
-                </div>
-              ))}
+              {Array.from({ length: 6 }).map((_, i) => <CasoCardSkeleton key={i} />)}
             </div>
           )}
 
