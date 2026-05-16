@@ -1,5 +1,5 @@
 import {
-  collection, addDoc, updateDoc, deleteDoc, doc,
+  collection, addDoc, updateDoc, deleteDoc, doc, getDoc,
   query, where, getDocs, serverTimestamp, type Timestamp,
 } from "firebase/firestore";
 import { db } from "./config";
@@ -40,6 +40,12 @@ export async function getConsultas(userId: string): Promise<ConsultaRecord[]> {
   );
   const docs = snap.docs.map(d => ({ id: d.id, ...d.data() } as ConsultaRecord));
   return docs.sort((a, b) => (b.createdAt?.seconds ?? 0) - (a.createdAt?.seconds ?? 0));
+}
+
+export async function getConsulta(id: string): Promise<ConsultaRecord | null> {
+  const snap = await getDoc(doc(db, "consultas", id));
+  if (!snap.exists()) return null;
+  return { id: snap.id, ...snap.data() } as ConsultaRecord;
 }
 
 export async function deleteConsulta(id: string): Promise<void> {

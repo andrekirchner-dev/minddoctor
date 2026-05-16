@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   FolderOpen, Plus, Search, Lock, X, ChevronRight, Trash2,
-  Pencil, AlertTriangle, Shield, Check, Tag, Clock,
+  Pencil, AlertTriangle, Shield, Check, Tag, Clock, User, ClipboardList,
 } from "lucide-react";
+import Link from "next/link";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { useAuth } from "@/components/providers/AuthProvider";
@@ -12,8 +13,52 @@ import {
   getCasos, saveCaso, updateCaso, deleteCaso,
   type CasoClinico, type StatusCaso,
 } from "@/lib/firebase/casos";
+import { getConsultas, type ConsultaRecord } from "@/lib/firebase/consultas";
 import { deriveKey, encryptField, decryptField } from "@/lib/crypto";
 import { cn } from "@/lib/utils";
+
+// ─── Patient grouping ─────────────────────────────────────────────────────────
+
+interface PatientGroup {
+  key: string;
+  patientName: string;
+  consultas: ConsultaRecord[];
+  latest: ConsultaRecord;
+}
+
+const TIPOS_LABEL: Record<string, string> = {
+  "nova-consulta":   "Nova consulta",
+  "retorno":         "Retorno ambulatorial",
+  "urgencia":        "Urgência psiquiátrica",
+  "enfermaria":      "Evolução de enfermaria",
+  "hospital-dia":    "Hospital Dia",
+  "inss":            "INSS / Perícia",
+  "avaliacao-risco": "Avaliação de risco",
+  "ajuste-med":      "Ajuste medicamentoso",
+};
+
+function groupByPatient(consultas: ConsultaRecord[]): PatientGroup[] {
+  const map = new Map<string, ConsultaRecord[]>();
+  for (const c of consultas) {
+    const key = (c.patientName || "paciente sem identificação").toLowerCase().trim();
+    if (!map.has(key)) map.set(key, []);
+    map.get(key)!.push(c);
+  }
+  return Array.from(map.entries())
+    .map(([key, recs]) => {
+      const sorted = [...recs].sort(
+        (a, b) => (b.createdAt?.seconds ?? 0) - (a.createdAt?.seconds ?? 0)
+      );
+      return { key, patientName: sorted[0].patientName || "Paciente sem identificação", consultas: sorted, latest: sorted[0] };
+    })
+    .sort((a, b) => (b.latest.createdAt?.seconds ?? 0) - (a.latest.createdAt?.seconds ?? 0));
+}
+
+function formatDateShort(seconds: number): string {
+  return new Date(seconds * 1000).toLocaleDateString("pt-BR", {
+    day: "2-digit", month: "2-digit", year: "numeric",
+  });
+}
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -97,9 +142,15 @@ const textareaCls = `${inputCls} resize-none`;
 export default function CasosPage() {
   const { user } = useAuth();
 
+  const [activeTab, setActiveTab]       = useState<"pacientes" | "casos">("pacientes");
   const [casos, setCasos]               = useState<CasoClinico[]>([]);
   const [loading, setLoading]           = useState(true);
   const [cryptoKey, setCryptoKey]       = useState<CryptoKey | null>(null);
+
+  // Consultas (pacientes atendidos)
+  const [consultas, setConsultas]             = useState<ConsultaRecord[]>([]);
+  const [consultasLoading, setConsultasLoading] = useState(true);
+  const [pacienteSearch, setPacienteSearch]   = useState("");
 
   // UI state
   const [search, setSearch]             = useState("");
@@ -115,15 +166,11 @@ export default function CasosPage() {
   const [decrypted, setDecrypted]       = useState<Record<string, { id: string; dn: string; ct: string }>>({});
   const [decrypting, setDecrypting]     = useState(false);
 
-  // ── Init: load casos + derive key independently ────────────────────────────
+  // ── Init: load casos + consultas + derive key independently ──────────────
   useEffect(() => {
     if (!user) return;
-    // Show list as soon as Firestore responds — don't wait for PBKDF2
-    getCasos(user.uid).then((data) => {
-      setCasos(data);
-      setLoading(false);
-    });
-    // Key arrives when it arrives; only needed for lazy decryption
+    getCasos(user.uid).then((data) => { setCasos(data); setLoading(false); });
+    getConsultas(user.uid).then((data) => { setConsultas(data); setConsultasLoading(false); });
     deriveKey(user.uid).then(setCryptoKey);
   }, [user]);
 
@@ -276,16 +323,181 @@ export default function CasosPage() {
             </div>
             <div className="flex-1">
               <h1 className="text-xl font-bold text-foreground">Casos Clínicos</h1>
-              <p className="text-xs text-muted-foreground">Dados sensíveis criptografados localmente · AES-256-GCM</p>
+              <p className="text-xs text-muted-foreground">
+                {activeTab === "pacientes"
+                  ? `${consultas.length} consulta${consultas.length !== 1 ? "s" : ""} registrada${consultas.length !== 1 ? "s" : ""}`
+                  : "Dados sensíveis criptografados localmente · AES-256-GCM"}
+              </p>
             </div>
-            <button
-              onClick={() => { setFormData(EMPTY_FORM); setEditingId(null); setPanelMode("novo"); }}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition-opacity"
-            >
-              <Plus size={15} />
-              Novo Caso
-            </button>
+            {activeTab === "casos" && (
+              <button
+                onClick={() => { setFormData(EMPTY_FORM); setEditingId(null); setPanelMode("novo"); }}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition-opacity"
+              >
+                <Plus size={15} />
+                Novo Caso
+              </button>
+            )}
+            {activeTab === "pacientes" && (
+              <Link
+                href="/consulta/nova"
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition-opacity"
+              >
+                <Plus size={15} />
+                Nova Consulta
+              </Link>
+            )}
           </div>
+
+          {/* Tabs */}
+          <div className="flex gap-1 border-b border-border">
+            {([
+              { id: "pacientes", label: "Pacientes Atendidos", icon: User },
+              { id: "casos",     label: "Casos de Estudo",     icon: FolderOpen },
+            ] as const).map(({ id, label, icon: Icon }) => (
+              <button
+                key={id}
+                onClick={() => setActiveTab(id)}
+                className={cn(
+                  "flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors",
+                  activeTab === id
+                    ? "border-primary text-primary"
+                    : "border-transparent text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <Icon size={14} />
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {/* ── Tab: Pacientes Atendidos ───────────────────────────────────── */}
+          {activeTab === "pacientes" && (() => {
+            const groups = groupByPatient(consultas);
+            const filtered = groups.filter(g =>
+              !pacienteSearch ||
+              g.patientName.toLowerCase().includes(pacienteSearch.toLowerCase()) ||
+              g.latest.diagnosticoPrincipal?.toLowerCase().includes(pacienteSearch.toLowerCase())
+            );
+            return (
+              <div className="space-y-4">
+                {/* Search */}
+                <div className="relative">
+                  <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <input
+                    value={pacienteSearch}
+                    onChange={e => setPacienteSearch(e.target.value)}
+                    placeholder="Buscar por nome ou CID..."
+                    className="w-full pl-9 pr-4 py-2.5 rounded-xl text-sm bg-card border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 transition-shadow"
+                  />
+                  {pacienteSearch && (
+                    <button onClick={() => setPacienteSearch("")} className="absolute right-3.5 top-1/2 -translate-y-1/2">
+                      <X size={14} className="text-muted-foreground hover:text-foreground" />
+                    </button>
+                  )}
+                </div>
+
+                {/* Loading */}
+                {consultasLoading && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {[1, 2, 3].map(i => (
+                      <div key={i} className="animate-pulse bg-card border border-border rounded-2xl p-5 space-y-3">
+                        <div className="h-4 w-2/3 rounded bg-muted" />
+                        <div className="h-3 w-1/2 rounded bg-muted" />
+                        <div className="h-3 w-full rounded bg-muted" />
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Patient grid */}
+                {!consultasLoading && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {filtered.map(group => (
+                      <Link
+                        key={group.key}
+                        href={`/casos/${group.latest.id}`}
+                        className="group bg-card border border-border rounded-2xl p-5 space-y-3 hover:border-primary/30 hover:shadow-[0_4px_20px_rgba(74,108,247,0.08)] transition-all duration-200"
+                      >
+                        {/* Avatar + name */}
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                            <User size={18} className="text-primary" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-bold text-sm text-foreground truncate">{group.patientName}</p>
+                            {group.latest.diagnosticoPrincipal && (
+                              <p className="text-[11px] font-mono text-muted-foreground">{group.latest.diagnosticoPrincipal}</p>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Last consultation info */}
+                        <div className="space-y-1">
+                          <p className="text-xs text-muted-foreground">
+                            {TIPOS_LABEL[group.latest.tipo] || group.latest.tipo}
+                          </p>
+                          {group.latest.condutaFarma && (
+                            <p className="text-[11px] text-muted-foreground/70 line-clamp-2">
+                              {group.latest.condutaFarma.slice(0, 80)}{group.latest.condutaFarma.length > 80 ? "…" : ""}
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Footer */}
+                        <div className="flex items-center justify-between pt-1">
+                          <div className="flex items-center gap-1.5">
+                            <ClipboardList size={11} className="text-muted-foreground" />
+                            <span className="text-[11px] text-muted-foreground">
+                              {group.consultas.length} consulta{group.consultas.length !== 1 ? "s" : ""}
+                            </span>
+                            {group.latest.createdAt?.seconds && (
+                              <>
+                                <span className="text-muted-foreground/40">·</span>
+                                <span className="text-[11px] text-muted-foreground">
+                                  {formatDateShort(group.latest.createdAt.seconds)}
+                                </span>
+                              </>
+                            )}
+                          </div>
+                          <ChevronRight size={14} className="text-muted-foreground/40 group-hover:text-primary transition-colors" />
+                        </div>
+                      </Link>
+                    ))}
+
+                    {/* Empty */}
+                    {filtered.length === 0 && !consultasLoading && (
+                      <div className="col-span-full border-2 border-dashed border-border rounded-2xl py-16 text-center space-y-3">
+                        <User size={28} className="text-muted-foreground mx-auto" />
+                        <div>
+                          <p className="text-sm font-semibold text-muted-foreground">
+                            {pacienteSearch ? "Nenhum paciente encontrado" : "Nenhuma consulta registrada ainda"}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {pacienteSearch
+                              ? `Nenhum resultado para "${pacienteSearch}"`
+                              : "As consultas confirmadas na Nova Consulta aparecem aqui automaticamente."}
+                          </p>
+                        </div>
+                        {!pacienteSearch && (
+                          <Link
+                            href="/consulta/nova"
+                            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition-opacity"
+                          >
+                            <Plus size={15} />
+                            Iniciar primeira consulta
+                          </Link>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
+          {/* ── Tab: Casos de Estudo ─────────────────────────────────────── */}
+          {activeTab === "casos" && <>
 
           {/* LGPD notice */}
           <div className="bg-amber-500/5 border border-amber-500/20 rounded-2xl px-4 py-3 flex gap-3">
@@ -437,6 +649,8 @@ export default function CasosPage() {
               )}
             </div>
           )}
+
+          </>}
         </div>
 
         {/* ── Detail panel ──────────────────────────────────────────────────── */}
