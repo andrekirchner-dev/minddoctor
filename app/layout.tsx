@@ -11,9 +11,9 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "MindDoctor — O Whitebook da Psiquiatria",
+  title: "Axon — O Whitebook da Psiquiatria",
   description: "Suporte clínico e educacional para residentes em psiquiatria",
-  icons: { icon: "/MindDoctor.png", apple: "/MindDoctor.png" },
+  icons: { icon: "/axon.png", apple: "/axon.png" },
 };
 
 export default function RootLayout({

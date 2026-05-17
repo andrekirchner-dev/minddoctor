@@ -72,7 +72,7 @@ export default function ChatIAPage() {
               </div>
               <div>
                 <p className="text-sm font-bold text-foreground">Chat Clínico</p>
-                <p className="text-[10px] text-muted-foreground">Apoio à decisão · MindDoctor AI</p>
+                <p className="text-[10px] text-muted-foreground">Apoio à decisão · Axon AI</p>
               </div>
             </div>
           </div>

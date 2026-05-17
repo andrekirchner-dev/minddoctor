@@ -224,7 +224,7 @@ export default function SettingsPage() {
             <Row
               icon={BookOpen}
               label="Termos de uso"
-              description="Condições de utilização da plataforma MindDoctor"
+              description="Condições de utilização da plataforma Axon"
               right={<ChevronRight size={15} className="text-muted-foreground/40 shrink-0" />}
             />
             <div className="px-5 py-3 bg-muted/10">
@@ -287,7 +287,7 @@ export default function SettingsPage() {
 
           {/* Sobre */}
           <div className="text-center py-2 space-y-1">
-            <p className="text-[10px] text-muted-foreground/40 font-mono">MindDoctor v{APP_VERSION}</p>
+            <p className="text-[10px] text-muted-foreground/40 font-mono">Axon v{APP_VERSION}</p>
             <p className="text-[10px] text-muted-foreground/30">
               Desenvolvido para residentes de psiquiatria · Brasil
             </p>

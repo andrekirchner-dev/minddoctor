@@ -519,7 +519,7 @@ export default function AdminPage() {
         </div>
         <div>
           <h1 className="text-xl font-bold text-foreground">Painel Admin</h1>
-          <p className="text-xs text-muted-foreground">MindDoctor — controle total do app</p>
+          <p className="text-xs text-muted-foreground">Axon — controle total do app</p>
         </div>
       </div>
 

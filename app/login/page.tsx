@@ -42,7 +42,7 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <div className="w-full max-w-sm">
         <div className="flex flex-col items-center mb-10">
-          <Image src="/MindDoctor.png" width={140} height={140} alt="MindDoctor" />
+          <Image src="/axon.png" width={140} height={140} alt="Axon" />
         </div>
 
         <div className="bg-card rounded-2xl p-8 border border-border shadow-[0_4px_20px_rgba(74,108,247,0.08)]">

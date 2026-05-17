@@ -79,9 +79,9 @@ export function Sidebar() {
           expanded ? "opacity-100" : "opacity-0 pointer-events-none"
         )}
       >
-        <Image src="/MindDoctor.png" width={22} height={22} alt="" className="rounded-md shrink-0" />
+        <Image src="/axon.png" width={22} height={22} alt="" className="rounded-md shrink-0" />
         <span className="text-white font-bold text-lg tracking-tight whitespace-nowrap">
-          MindDoctor
+          Axon
         </span>
       </div>
 
