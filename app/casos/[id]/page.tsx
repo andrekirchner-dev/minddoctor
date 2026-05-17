@@ -139,9 +139,36 @@ export default function PosConsultaPage() {
     return (
       <AuthGuard>
         <DashboardLayout>
-          <div className="space-y-4">
-            {[1, 2, 3].map(i => (
-              <div key={i} className="h-32 bg-muted/40 rounded-2xl animate-pulse" />
+          <div className="space-y-5 animate-pulse">
+            {/* Header skeleton */}
+            <div className="flex items-start gap-3">
+              <div className="w-8 h-8 rounded-lg bg-muted shrink-0 mt-1" />
+              <div className="w-10 h-10 rounded-xl bg-muted shrink-0" />
+              <div className="flex-1 space-y-2">
+                <div className="h-5 w-48 rounded bg-muted" />
+                <div className="h-3 w-64 rounded bg-muted" />
+              </div>
+              <div className="h-6 w-20 rounded-full bg-muted shrink-0" />
+            </div>
+            {/* Actions skeleton */}
+            <div className="flex gap-2">
+              <div className="h-10 w-36 rounded-xl bg-muted" />
+              <div className="h-10 w-36 rounded-xl bg-muted" />
+              <div className="h-10 w-36 rounded-xl bg-muted" />
+            </div>
+            {/* Section skeletons */}
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="bg-card border border-border rounded-2xl overflow-hidden">
+                <div className="px-5 py-4 border-b border-border flex items-center gap-2">
+                  <div className="w-5 h-5 rounded bg-muted" />
+                  <div className="h-4 w-40 rounded bg-muted" />
+                </div>
+                <div className="p-5 space-y-3">
+                  <div className="h-3 w-full rounded bg-muted" />
+                  <div className="h-3 w-5/6 rounded bg-muted" />
+                  <div className="h-3 w-4/6 rounded bg-muted" />
+                </div>
+              </div>
             ))}
           </div>
         </DashboardLayout>

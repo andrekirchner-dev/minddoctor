@@ -268,8 +268,23 @@ export default function HistoricoPage() {
           {/* List */}
           {loading && (
             <div className="space-y-3">
-              {[1,2,3].map(i => (
-                <div key={i} className="h-20 bg-muted/40 rounded-2xl animate-pulse" />
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="bg-card border border-border rounded-2xl overflow-hidden animate-pulse">
+                  <div className="flex items-start gap-4 px-5 py-4">
+                    <div className="w-10 h-10 rounded-xl bg-muted shrink-0 mt-0.5" />
+                    <div className="flex-1 min-w-0 space-y-2">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="space-y-1.5 flex-1">
+                          <div className="h-3.5 w-40 rounded bg-muted" />
+                          <div className="h-2.5 w-28 rounded bg-muted" />
+                        </div>
+                        <div className="h-2.5 w-16 rounded bg-muted shrink-0" />
+                      </div>
+                      <div className="h-2.5 w-full rounded bg-muted" />
+                      <div className="h-2.5 w-3/4 rounded bg-muted" />
+                    </div>
+                  </div>
+                </div>
               ))}
             </div>
           )}
