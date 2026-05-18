@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-// Public routes — no auth required
-const PUBLIC_PATHS = ["/login", "/favicon.ico"];
+const PUBLIC_PATHS = ["/login", "/favicon.ico", "/_next", "/api", "/axon"];
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -10,10 +9,15 @@ export function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Firebase Auth is client-side (JWT stored in browser).
-  // Full server-side guard would require Firebase Admin SDK + session cookies
-  // and is scoped to Phase 1 backend work.
-  // Client-side: AuthProvider redirects unauthenticated users to /login.
+  // Cookie set by AuthProvider on login/logout — gates the UI only.
+  // Real auth enforcement happens via Firebase tokens on each API call.
+  const authed = request.cookies.get("axon_auth")?.value === "1";
+  if (!authed) {
+    const loginUrl = request.nextUrl.clone();
+    loginUrl.pathname = "/login";
+    return NextResponse.redirect(loginUrl);
+  }
+
   return NextResponse.next();
 }
 

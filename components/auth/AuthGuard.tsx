@@ -14,9 +14,9 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     }
   }, [user, loading, router]);
 
-  // Render immediately — Firebase resolves auth from IndexedDB within ~200ms.
-  // Unauthenticated users are redirected via useEffect before Firestore data loads.
-  if (!loading && !user) return null;
+  // proxy.ts redirects unauthenticated users server-side before HTML is sent.
+  // Show nothing while Firebase resolves from IndexedDB to prevent dashboard flash.
+  if (loading || !user) return null;
 
   return <>{children}</>;
 }

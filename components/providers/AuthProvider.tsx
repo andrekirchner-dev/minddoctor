@@ -29,13 +29,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const unsubscribe = onAuthChange((u) => {
       setUser(u);
-      setLoading(false); // unblock immediately — profile loads in background
+      setLoading(false);
 
+      // Cookie gates the proxy.ts server-side redirect (UI-only, not security)
       if (u) {
+        document.cookie = "axon_auth=1; path=/; max-age=86400; SameSite=Lax";
         getUserProfile(u.uid)
           .then(setProfile)
           .catch(() => setProfile(null));
       } else {
+        document.cookie = "axon_auth=; path=/; max-age=0";
         setProfile(null);
       }
     });
