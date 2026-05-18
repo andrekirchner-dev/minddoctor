@@ -1,5 +1,3 @@
-"use client";
-
 import { AlertTriangle, Clock, ChevronRight, Zap } from "lucide-react";
 import Link from "next/link";
 import { AuthGuard } from "@/components/auth/AuthGuard";

@@ -12,6 +12,8 @@ import {
 } from "firebase/firestore";
 import { db } from "./config";
 
+const cache = new Map<string, CasoClinico[]>();
+
 export type StatusCaso = "ativo" | "acompanhamento" | "alta" | "encerrado";
 
 export interface CasoClinico {
@@ -41,18 +43,18 @@ export interface CasoClinico {
 type NewCaso = Omit<CasoClinico, "id" | "createdAt" | "updatedAt">;
 
 export async function getCasos(userId: string): Promise<CasoClinico[]> {
+  if (cache.has(userId)) return cache.get(userId)!;
   const snap = await getDocs(
     query(collection(db, "casos"), where("userId", "==", userId))
   );
   const docs = snap.docs.map((d) => ({ id: d.id, ...d.data() } as CasoClinico));
-  return docs.sort((a, b) => {
-    const ta = a.updatedAt?.seconds ?? 0;
-    const tb = b.updatedAt?.seconds ?? 0;
-    return tb - ta;
-  });
+  const sorted = docs.sort((a, b) => (b.updatedAt?.seconds ?? 0) - (a.updatedAt?.seconds ?? 0));
+  cache.set(userId, sorted);
+  return sorted;
 }
 
 export async function saveCaso(caso: NewCaso): Promise<string> {
+  cache.delete(caso.userId);
   const ref = await addDoc(collection(db, "casos"), {
     ...caso,
     createdAt: serverTimestamp(),
@@ -62,9 +64,11 @@ export async function saveCaso(caso: NewCaso): Promise<string> {
 }
 
 export async function updateCaso(id: string, caso: Partial<NewCaso>): Promise<void> {
+  cache.clear();
   await updateDoc(doc(db, "casos", id), { ...caso, updatedAt: serverTimestamp() });
 }
 
 export async function deleteCaso(id: string): Promise<void> {
+  cache.clear();
   await deleteDoc(doc(db, "casos", id));
 }

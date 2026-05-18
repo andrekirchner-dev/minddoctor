@@ -44,6 +44,7 @@ import {
   getConsulta,
   deleteConsulta,
   getAllConsultasCount,
+  clearConsultasCache,
 } from "@/lib/firebase/consultas";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -130,7 +131,7 @@ describe("saveConsulta", () => {
 // ── getConsultas ──────────────────────────────────────────────────────────────
 
 describe("getConsultas", () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => { vi.resetAllMocks(); clearConsultasCache(); });
 
   it("queries Firestore scoped to the requesting userId", async () => {
     mockWhere.mockReturnValueOnce("where-clause");
