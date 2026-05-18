@@ -1,12 +1,20 @@
 import Link from "next/link";
 import {
   Stethoscope, ClipboardCheck, FileOutput, ChevronRight,
-  Info, Plus, ClipboardList, Brain, History,
+  Info, Plus, ClipboardList, Brain, History, BedDouble,
 } from "lucide-react";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 
 const tools = [
+  {
+    href: "/consulta/leitos",
+    icon: BedDouble,
+    titulo: "Acompanhamento de Leito",
+    subtitulo: "Evolução de enfermaria",
+    descricao: "Acompanhe pacientes internados por leito: registre evoluções diárias, medicações, alertas clínicos e status (estável, atenção, crítico). Ideal para rounds de enfermaria.",
+    gradient: "from-teal-500 to-emerald-600",
+  },
   {
     href: "/consulta/historico",
     icon: History,
