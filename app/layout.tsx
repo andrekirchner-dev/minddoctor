@@ -13,7 +13,7 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "Axon — O Whitebook da Psiquiatria",
   description: "Suporte clínico e educacional para residentes em psiquiatria",
-  icons: { icon: "/icon.png", apple: "/icon.png" },
+  icons: { icon: "/favicon.ico", apple: "/icon.png" },
 };
 
 export default function RootLayout({
