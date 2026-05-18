@@ -8,7 +8,7 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined,
   reporter: "list",
   use: {
-    baseURL: process.env.PLAYWRIGHT_BASE_URL || "https://minddr.vercel.app",
+    baseURL: process.env.PLAYWRIGHT_BASE_URL || "https://axon-med.vercel.app",
     trace: "on-first-retry",
   },
   projects: [

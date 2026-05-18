@@ -13,9 +13,7 @@ export function proxy(request: NextRequest) {
   // Real auth enforcement happens via Firebase tokens on each API call.
   const authed = request.cookies.get("axon_auth")?.value === "1";
   if (!authed) {
-    const loginUrl = request.nextUrl.clone();
-    loginUrl.pathname = "/login";
-    return NextResponse.redirect(loginUrl);
+    return NextResponse.redirect(new URL("/login", request.url));
   }
 
   return NextResponse.next();
