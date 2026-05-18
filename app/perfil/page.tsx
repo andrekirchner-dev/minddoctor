@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { User, Mail, CreditCard, Stethoscope, CheckCircle2, Loader2, ShieldCheck } from "lucide-react";
+import { User, Mail, CreditCard, Stethoscope, CheckCircle2, Loader2, ShieldCheck, GraduationCap } from "lucide-react";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { useAuth } from "@/components/providers/AuthProvider";
-import { updateUserProfileData } from "@/lib/firebase/firestore";
+import { updateUserProfileData, SITUACAO_LABEL, type SituacaoAcademica } from "@/lib/firebase/firestore";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
 
@@ -25,6 +25,7 @@ export default function PerfilPage() {
   const [displayName, setDisplayName] = useState("");
   const [crm, setCrm] = useState("");
   const [moduloAtivo, setModuloAtivo] = useState<string>("adulto");
+  const [situacaoAcademica, setSituacaoAcademica] = useState<SituacaoAcademica>("r1");
   const [saveState, setSaveState] = useState<SaveState>("idle");
 
   useEffect(() => {
@@ -32,6 +33,7 @@ export default function PerfilPage() {
       setDisplayName(profile.displayName ?? "");
       setCrm(profile.crm ?? "");
       setModuloAtivo(profile.moduloAtivo ?? "adulto");
+      setSituacaoAcademica(profile.situacaoAcademica ?? "r1");
     }
   }, [profile]);
 
@@ -44,6 +46,7 @@ export default function PerfilPage() {
         displayName: displayName.trim() || null,
         crm: crm.trim() || undefined,
         moduloAtivo: moduloAtivo as "adulto" | "infancia" | "forense" | "psicogeriatria" | "interconsulta",
+        situacaoAcademica,
       });
       setSaveState("saved");
       setTimeout(() => setSaveState("idle"), 2500);
@@ -175,6 +178,22 @@ export default function PerfilPage() {
                 ))}
               </select>
               <p className="text-[10px] text-muted-foreground/60">Personaliza o conteúdo exibido no Dashboard</p>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                <GraduationCap size={11} className="text-muted-foreground" /> Situação acadêmica
+              </label>
+              <select
+                value={situacaoAcademica}
+                onChange={(e) => setSituacaoAcademica(e.target.value as SituacaoAcademica)}
+                className="w-full bg-muted/30 border border-border rounded-xl px-3 py-2 text-sm text-foreground outline-none focus:border-primary/40 transition-colors"
+              >
+                {(Object.entries(SITUACAO_LABEL) as [SituacaoAcademica, string][]).map(([v, l]) => (
+                  <option key={v} value={v}>{l}</option>
+                ))}
+              </select>
+              <p className="text-[10px] text-muted-foreground/60">Exibida no card de perfil da dashboard</p>
             </div>
 
             <button

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/components/providers/AuthProvider";
+import { SITUACAO_LABEL } from "@/lib/firebase/firestore";
 
 export function ProfileCard() {
   const { user, profile, isAdmin } = useAuth();
@@ -14,6 +15,9 @@ export function ProfileCard() {
   const photo    = user?.photoURL ?? "";
   const initials = name.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase();
   const isPro    = profile?.plano === "pro";
+  const situacaoLabel = profile?.situacaoAcademica
+    ? SITUACAO_LABEL[profile.situacaoAcademica]
+    : "Residente";
 
   return (
     <div className="bg-card rounded-2xl p-5 shadow-[0_4px_20px_rgba(74,108,247,0.08)] border border-border">
@@ -39,7 +43,7 @@ export function ProfileCard() {
             variant="secondary"
             className="text-[10px] tracking-widest font-semibold uppercase"
           >
-            Residente
+            {situacaoLabel}
           </Badge>
           {isPro && (
             <Badge className="text-[10px] font-semibold gap-1 bg-[#7B5EA7]/15 text-[#7B5EA7] border-0">

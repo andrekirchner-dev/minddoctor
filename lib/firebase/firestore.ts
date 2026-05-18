@@ -18,6 +18,22 @@ export interface NotificationPrefs {
   atualizacoesConteudo: boolean;
 }
 
+export type SituacaoAcademica =
+  | "r1" | "r2" | "r3"
+  | "pos-graduacao" | "mestrado" | "doutorado"
+  | "staff" | "outro";
+
+export const SITUACAO_LABEL: Record<SituacaoAcademica, string> = {
+  "r1":           "R1 — Residente",
+  "r2":           "R2 — Residente",
+  "r3":           "R3 — Residente",
+  "pos-graduacao":"Pós-graduação",
+  "mestrado":     "Mestrado",
+  "doutorado":    "Doutorado",
+  "staff":        "Staff / Docente",
+  "outro":        "Outro",
+};
+
 export interface UserProfile {
   uid: string;
   email: string | null;
@@ -27,6 +43,7 @@ export interface UserProfile {
   role: "admin" | "user";
   moduloAtivo: "adulto" | "infancia" | "forense" | "psicogeriatria" | "interconsulta";
   crm?: string;
+  situacaoAcademica?: SituacaoAcademica;
   notificacoes?: NotificationPrefs;
   createdAt: DocumentData;
   updatedAt: DocumentData;
@@ -76,7 +93,7 @@ export async function updateUserPlan(uid: string, plano: "free" | "pro"): Promis
 
 export async function updateUserProfileData(
   uid: string,
-  data: Partial<Pick<UserProfile, "displayName" | "crm" | "moduloAtivo">>
+  data: Partial<Pick<UserProfile, "displayName" | "crm" | "moduloAtivo" | "situacaoAcademica">>
 ): Promise<void> {
   await setDoc(doc(db, "usuarios", uid), { ...data, updatedAt: serverTimestamp() }, { merge: true });
 }
