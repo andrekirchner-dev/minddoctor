@@ -20,7 +20,7 @@ const MODULOS = [
 type SaveState = "idle" | "saving" | "saved" | "error";
 
 export default function PerfilPage() {
-  const { user, profile } = useAuth();
+  const { user, profile, refreshProfile } = useAuth();
 
   const [displayName, setDisplayName] = useState("");
   const [crm, setCrm] = useState("");
@@ -48,6 +48,7 @@ export default function PerfilPage() {
         moduloAtivo: moduloAtivo as "adulto" | "infancia" | "forense" | "psicogeriatria" | "interconsulta",
         situacaoAcademica,
       });
+      await refreshProfile();
       setSaveState("saved");
       setTimeout(() => setSaveState("idle"), 2500);
     } catch {

@@ -95,7 +95,10 @@ export async function updateUserProfileData(
   uid: string,
   data: Partial<Pick<UserProfile, "displayName" | "crm" | "moduloAtivo" | "situacaoAcademica">>
 ): Promise<void> {
-  await setDoc(doc(db, "usuarios", uid), { ...data, updatedAt: serverTimestamp() }, { merge: true });
+  const clean = Object.fromEntries(
+    Object.entries(data).filter(([, v]) => v !== undefined)
+  );
+  await setDoc(doc(db, "usuarios", uid), { ...clean, updatedAt: serverTimestamp() }, { merge: true });
 }
 
 export async function updateNotificationPrefs(

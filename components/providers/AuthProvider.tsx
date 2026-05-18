@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 import type { User } from "firebase/auth";
 import { onAuthChange } from "@/lib/firebase/auth";
 import { getUserProfile, upsertUserProfile, type UserProfile } from "@/lib/firebase/firestore";
@@ -12,6 +12,7 @@ interface AuthContextValue {
   profile: UserProfile | null;
   isAdmin: boolean;
   loading: boolean;
+  refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue>({
@@ -19,16 +20,19 @@ const AuthContext = createContext<AuthContextValue>({
   profile: null,
   isAdmin: false,
   loading: true,
+  refreshProfile: async () => {},
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser]       = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const userRef               = useRef<User | null>(null);
 
   useEffect(() => {
     const unsubscribe = onAuthChange((u) => {
       setUser(u);
+      userRef.current = u;
       setLoading(false);
 
       // Cookie gates the proxy.ts server-side redirect (UI-only, not security)
@@ -45,12 +49,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return unsubscribe;
   }, []);
 
+  async function refreshProfile() {
+    const u = userRef.current;
+    if (!u) return;
+    const updated = await getUserProfile(u.uid).catch(() => null);
+    setProfile(updated);
+  }
+
   const isAdmin =
     profile?.role === "admin" ||
     ADMIN_EMAILS.includes(user?.email?.toLowerCase() ?? "");
 
   return (
-    <AuthContext.Provider value={{ user, profile, isAdmin, loading }}>
+    <AuthContext.Provider value={{ user, profile, isAdmin, loading, refreshProfile }}>
       {children}
     </AuthContext.Provider>
   );

@@ -22,9 +22,12 @@ export function ProfileCard() {
   return (
     <div className="bg-card rounded-2xl p-5 shadow-[0_4px_20px_rgba(74,108,247,0.08)] border border-border">
       <div className="flex justify-end mb-2">
-        <button className="w-8 h-8 flex items-center justify-center rounded-xl bg-muted text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors">
+        <Link
+          href="/perfil"
+          className="w-8 h-8 flex items-center justify-center rounded-xl bg-muted text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+        >
           <Pencil size={14} />
-        </button>
+        </Link>
       </div>
 
       <div className="flex flex-col items-center text-center mb-4">
