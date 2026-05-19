@@ -38,7 +38,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Cookie gates the proxy.ts server-side redirect (UI-only, not security)
       if (u) {
         document.cookie = "axon_auth=1; path=/; max-age=86400; SameSite=Lax";
-        getUserProfile(u.uid)
+        // upsertUserProfile creates the Firestore doc if it doesn't exist yet.
+        // Calling it here ensures the record is created regardless of how auth
+        // state is restored — popup, redirect, or session persistence from IndexedDB.
+        upsertUserProfile(u)
+          .then(() => getUserProfile(u.uid))
           .then(setProfile)
           .catch(() => setProfile(null));
       } else {
