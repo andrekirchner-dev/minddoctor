@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
   ChevronLeft, ClipboardList, Search, X, ChevronDown, ChevronUp,
-  Copy, Check, Plus, FileText, Calendar, User,
+  Copy, Check, Plus, FileText, Calendar, User, TrendingUp,
 } from "lucide-react";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";

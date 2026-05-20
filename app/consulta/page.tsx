@@ -2,11 +2,20 @@ import Link from "next/link";
 import {
   Stethoscope, ClipboardCheck, FileOutput, ChevronRight,
   Info, Plus, ClipboardList, Brain, History, BedDouble,
+  LineChart,
 } from "lucide-react";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 
 const tools = [
+  {
+    href: "/consulta/acompanhamento",
+    icon: LineChart,
+    titulo: "Acompanhamento de Pacientes",
+    subtitulo: "Evolução longitudinal e gráficos",
+    descricao: "Registre notas de evolução, acompanhe sintomas e medicamentos com gráficos comparativos, gerencie planos de crise ativos e agende próximas avaliações.",
+    gradient: "from-indigo-500 to-primary",
+  },
   {
     href: "/consulta/leitos",
     icon: BedDouble,
