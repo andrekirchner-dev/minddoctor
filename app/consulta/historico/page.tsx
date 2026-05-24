@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
   ChevronLeft, ClipboardList, Search, X, ChevronDown, ChevronUp,
-  Copy, Check, Plus, FileText, Calendar, User, Pencil, Loader2,
+  Copy, Check, Plus, FileText, Calendar, User, Pencil, Loader2, Printer,
 } from "lucide-react";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
@@ -34,6 +34,27 @@ function formatDateTime(seconds: number): string {
     day: "2-digit", month: "2-digit", year: "numeric",
     hour: "2-digit", minute: "2-digit",
   });
+}
+
+function printConsulta(record: ConsultaRecord) {
+  const tipoLabel = TIPOS_LABEL[record.tipo] || record.tipo;
+  const date = record.createdAt?.seconds ? formatDateTime(record.createdAt.seconds) : "—";
+  const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Prontuário</title><style>
+    body{font-family:'Segoe UI',Arial,sans-serif;max-width:800px;margin:0 auto;padding:32px;color:#111}
+    h1{font-size:20px;margin-bottom:4px}.meta{color:#666;font-size:13px;margin-bottom:24px}
+    .section{margin-bottom:20px}.label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:#666;margin-bottom:6px}
+    .value{font-size:13px}.prontuario{white-space:pre-wrap;font-size:12px;line-height:1.6;background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:16px}
+    .footer{margin-top:32px;font-size:11px;color:#999;border-top:1px solid #e5e7eb;padding-top:12px}
+  </style></head><body>
+    <h1>${record.patientName || "Paciente sem identificação"}</h1>
+    <div class="meta">${tipoLabel} · ${date}${record.diagnosticoPrincipal ? ` · ${record.diagnosticoPrincipal}` : ""}${record.nivelRisco ? ` · Risco ${record.nivelRisco}` : ""}</div>
+    ${record.condutaFarma ? `<div class="section"><div class="label">Conduta farmacológica</div><div class="value">${record.condutaFarma.replace(/\n/g, "<br>")}</div></div>` : ""}
+    ${record.prontuarioBase ? `<div class="section"><div class="label">Prontuário-base</div><div class="prontuario">${record.prontuarioBase.replace(/</g,"&lt;").replace(/>/g,"&gt;")}</div></div>` : ""}
+    <div class="footer">Gerado por Axon · ${new Date().toLocaleDateString("pt-BR")} · Ferramenta de apoio clínico — não substitui assinatura médica.</div>
+    <script>window.onload=function(){window.print();}</script>
+  </body></html>`;
+  const w = window.open("", "_blank");
+  if (w) { w.document.write(html); w.document.close(); }
 }
 
 // ─── Edit Modal ────────────────────────────────────────────────────────────────
@@ -170,12 +191,13 @@ function EditModal({ record, onClose, onSaved }: {
 
 import { useRef } from "react";
 
-function ConsultaCard({ record, expanded, onToggle, onDelete, onEdit, copying, onCopy }: {
+function ConsultaCard({ record, expanded, onToggle, onDelete, onEdit, onPrint, copying, onCopy }: {
   record: ConsultaRecord;
   expanded: boolean;
   onToggle: () => void;
   onDelete: () => void;
   onEdit: () => void;
+  onPrint: () => void;
   copying: boolean;
   onCopy: () => void;
 }) {
@@ -268,6 +290,14 @@ function ConsultaCard({ record, expanded, onToggle, onDelete, onEdit, copying, o
             </button>
             <button
               type="button"
+              onClick={onPrint}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border border-border text-muted-foreground hover:border-primary/30 hover:text-primary transition-all"
+            >
+              <Printer size={12} />
+              Exportar PDF
+            </button>
+            <button
+              type="button"
               onClick={onDelete}
               className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border border-border text-muted-foreground hover:border-rose-500/30 hover:text-rose-600 transition-all"
             >
@@ -288,12 +318,14 @@ export default function HistoricoPage() {
   const searchParams   = useSearchParams();
   const focusId        = searchParams.get("id");
 
-  const [consultas,   setConsultas]   = useState<ConsultaRecord[]>([]);
-  const [loading,     setLoading]     = useState(true);
-  const [queryText,   setQueryText]   = useState("");
-  const [expandedId,  setExpandedId]  = useState<string | null>(focusId);
-  const [copied,      setCopied]      = useState<string | false>(false);
-  const [editRecord,  setEditRecord]  = useState<ConsultaRecord | null>(null);
+  const [consultas,     setConsultas]     = useState<ConsultaRecord[]>([]);
+  const [loading,       setLoading]       = useState(true);
+  const [queryText,     setQueryText]     = useState("");
+  const [expandedId,    setExpandedId]    = useState<string | null>(focusId);
+  const [copied,        setCopied]        = useState<string | false>(false);
+  const [editRecord,    setEditRecord]    = useState<ConsultaRecord | null>(null);
+  const [periodFilter,  setPeriodFilter]  = useState<"tudo" | "hoje" | "semana" | "mes">("tudo");
+  const [tipoFilter,    setTipoFilter]    = useState("todos");
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -308,14 +340,25 @@ export default function HistoricoPage() {
   useEffect(() => { load(); }, [load]);
 
   const filtered = consultas.filter(c => {
-    if (!queryText) return true;
     const q = queryText.toLowerCase();
-    return (
+    const matchText = !queryText || (
       c.patientName?.toLowerCase().includes(q) ||
       c.diagnosticoPrincipal?.toLowerCase().includes(q) ||
       c.tipo?.toLowerCase().includes(q) ||
       TIPOS_LABEL[c.tipo]?.toLowerCase().includes(q)
     );
+    const matchTipo = tipoFilter === "todos" || c.tipo === tipoFilter;
+    const sec = c.createdAt?.seconds ?? 0;
+    const d = new Date(sec * 1000);
+    const hoje = new Date(); hoje.setHours(0,0,0,0);
+    const semana = new Date(); semana.setDate(semana.getDate() - semana.getDay()); semana.setHours(0,0,0,0);
+    const mes = new Date(); mes.setDate(1); mes.setHours(0,0,0,0);
+    const matchPeriod =
+      periodFilter === "tudo" ? true :
+      periodFilter === "hoje" ? d >= hoje :
+      periodFilter === "semana" ? d >= semana :
+      d >= mes;
+    return matchText && matchTipo && matchPeriod;
   });
 
   async function handleDelete(id: string) {
@@ -377,32 +420,39 @@ export default function HistoricoPage() {
             )}
           </div>
 
-          {/* Stats strip */}
+          {/* Period + tipo filters */}
           {!loading && consultas.length > 0 && (
-            <div className="flex gap-4 text-xs text-muted-foreground">
-              {[
-                { label: "Hoje", value: consultas.filter(c => {
-                  const d = new Date((c.createdAt?.seconds ?? 0) * 1000);
-                  const t = new Date(); t.setHours(0,0,0,0);
-                  return d >= t;
-                }).length },
-                { label: "Esta semana", value: consultas.filter(c => {
-                  const d = new Date((c.createdAt?.seconds ?? 0) * 1000);
-                  const w = new Date(); w.setDate(w.getDate() - w.getDay()); w.setHours(0,0,0,0);
-                  return d >= w;
-                }).length },
-                { label: "Este mês", value: consultas.filter(c => {
-                  const d = new Date((c.createdAt?.seconds ?? 0) * 1000);
-                  const m = new Date(); m.setDate(1); m.setHours(0,0,0,0);
-                  return d >= m;
-                }).length },
-              ].map(s => (
-                <div key={s.label} className="flex items-center gap-1">
-                  <Calendar size={11} />
-                  <span className="font-semibold text-foreground">{s.value}</span>
-                  <span>{s.label.toLowerCase()}</span>
-                </div>
-              ))}
+            <div className="flex flex-col gap-2">
+              <div className="flex gap-1 flex-wrap">
+                {(["tudo","hoje","semana","mes"] as const).map(p => {
+                  const LABELS = { tudo: "Tudo", hoje: "Hoje", semana: "Semana", mes: "Mês" };
+                  return (
+                    <button
+                      key={p}
+                      onClick={() => setPeriodFilter(p)}
+                      className={cn(
+                        "px-3 py-1.5 rounded-lg text-xs font-medium transition-colors",
+                        periodFilter === p ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      {LABELS[p]}
+                    </button>
+                  );
+                })}
+                <select
+                  value={tipoFilter}
+                  onChange={e => setTipoFilter(e.target.value)}
+                  className="ml-auto px-3 py-1.5 rounded-lg text-xs bg-muted text-muted-foreground border-0 focus:outline-none focus:ring-2 focus:ring-primary/30 cursor-pointer"
+                >
+                  <option value="todos">Todos os tipos</option>
+                  {Object.entries(TIPOS_LABEL).map(([k, v]) => (
+                    <option key={k} value={k}>{v}</option>
+                  ))}
+                </select>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {filtered.length} de {consultas.length} consulta{consultas.length !== 1 ? "s" : ""}
+              </p>
             </div>
           )}
 
@@ -460,6 +510,7 @@ export default function HistoricoPage() {
                   onToggle={() => setExpandedId(expandedId === record.id ? null : record.id)}
                   onDelete={() => handleDelete(record.id)}
                   onEdit={() => setEditRecord(record)}
+                  onPrint={() => printConsulta(record)}
                   copying={copied === record.id}
                   onCopy={() => handleCopy(record)}
                 />

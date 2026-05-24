@@ -6,12 +6,15 @@ import {
   ChevronDown, ChevronUp, AlertCircle, FileText, ClipboardList,
   Stethoscope, Brain, Shield, Pill, History, User, MessageSquare,
   ClipboardCheck, FileOutput, Users, AlertTriangle, BookOpen,
-  Settings2, Zap, Info, Star, Search,
+  Settings2, Zap, Info, Star, Search, Bookmark, Loader2,
 } from "lucide-react";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { saveConsulta, getConsultas, type ConsultaRecord } from "@/lib/firebase/consultas";
+import { saveCaso } from "@/lib/firebase/casos";
+import { deriveKey, encryptField } from "@/lib/crypto";
+import { toast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -1137,6 +1140,8 @@ export default function NovaConsultaPage() {
   const [prevOpen, setPrevOpen] = useState(false);
   const [consultaId, setConsultaId] = useState<string | null>(null);
   const [prevState, setPrevState] = useState<ConsultaState | null>(null);
+  const [savingCaso, setSavingCaso] = useState(false);
+  const [casoSalvo, setCasoSalvo] = useState(false);
 
   const set = useCallback(<K extends keyof ConsultaState>(key: K, val: ConsultaState[K]) => {
     setData(prev => ({ ...prev, [key]: val }));
@@ -1263,6 +1268,49 @@ export default function NovaConsultaPage() {
       }).then(id => setConsultaId(id)).catch(console.error);
     }
     setStep(8);
+  }
+
+  async function handleSaveAsCaso() {
+    if (!user || savingCaso) return;
+    setSavingCaso(true);
+    try {
+      const key = await deriveKey(user.uid);
+      const ident = data.ident as Record<string, string>;
+      const [identificador_enc, dataNascimento_enc, contato_enc] = await Promise.all([
+        encryptField(ident.nome || "", key),
+        encryptField("", key),
+        encryptField("", key),
+      ]);
+      const condutaText = [
+        data.condutaFarma ? `Farmacoterapia: ${data.condutaFarma}` : "",
+        ...(data.condutaPsico || []).map((p: string) => `Psicoterapia: ${p}`),
+      ].filter(Boolean).join("\n");
+      await saveCaso({
+        userId: user.uid,
+        titulo: `${data.diagnosticoPrincipal || data.diagnosticoLivre || "Caso clínico"} — ${new Date().toLocaleDateString("pt-BR")}`,
+        idade: data.ident.idade ? Number(data.ident.idade) : null,
+        sexo: (data.ident.sexo as "M" | "F" | "outro") || "",
+        diagnosticoCID: data.diagnosticoPrincipal || "",
+        hipotese: data.diagnosticoLivre || "",
+        historico: data.prontuarioBase || "",
+        historicoFamiliar: "",
+        exameMental: "",
+        medicamentosAtuais: data.condutaFarma || "",
+        conduta: condutaText,
+        observacoesEstudo: "",
+        tags: data.diagnosticoPrincipal ? [data.diagnosticoPrincipal] : [],
+        status: "ativo",
+        identificador_enc,
+        dataNascimento_enc,
+        contato_enc,
+      });
+      toast.success("Caso clínico salvo com sucesso.");
+      setCasoSalvo(true);
+    } catch {
+      toast.error("Erro ao salvar caso clínico.");
+    } finally {
+      setSavingCaso(false);
+    }
   }
 
   // ── Step renderers ────────────────────────────────────────────────────────────
@@ -2026,6 +2074,27 @@ export default function NovaConsultaPage() {
           >
             {copied === "prontuario-base-final" ? <Check size={12} /> : <Copy size={12} />}
             {copied === "prontuario-base-final" ? "Copiado!" : "Copiar prontuário"}
+          </button>
+        </div>
+
+        <div className="bg-card border border-border rounded-2xl p-5 flex items-center justify-between gap-4">
+          <div>
+            <p className="text-sm font-semibold text-foreground">Salvar como Caso Clínico</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Adiciona este prontuário ao banco de casos clínicos para estudo.</p>
+          </div>
+          <button
+            type="button"
+            onClick={handleSaveAsCaso}
+            disabled={savingCaso || casoSalvo}
+            className={cn(
+              "flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all shrink-0",
+              casoSalvo
+                ? "bg-green-500/10 text-green-600 border border-green-500/30"
+                : "bg-primary/10 text-primary border border-primary/20 hover:bg-primary hover:text-white disabled:opacity-50"
+            )}
+          >
+            {casoSalvo ? <Check size={14} /> : savingCaso ? <Loader2 size={14} className="animate-spin" /> : <Bookmark size={14} />}
+            {casoSalvo ? "Salvo!" : savingCaso ? "Salvando..." : "Salvar como Caso"}
           </button>
         </div>
       </div>

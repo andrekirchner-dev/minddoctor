@@ -1,11 +1,17 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
 import {
   BookOpen, ChevronRight, ChevronLeft, Dna, FlaskConical,
   Pill, ClipboardList, Wrench, Users, BookMarked,
-  Sparkles, Lock,
+  Sparkles, Lock, Search, X,
 } from "lucide-react";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
+import { farmacos } from "@/lib/data/farmacos";
+import { transtornos } from "@/lib/data/transtornos";
+import { sistemas } from "@/lib/data/receptores";
 
 type Status = "disponivel" | "parcial" | "breve";
 
@@ -149,6 +155,40 @@ const statusConfig: Record<Status, { label: string; cls: string }> = {
 };
 
 export default function BibliotecaHubPage() {
+  const [query, setQuery] = useState("");
+
+  const q = query.toLowerCase();
+  const results = query.length < 2 ? [] : [
+    ...farmacos
+      .filter(f =>
+        f.nome.toLowerCase().includes(q) ||
+        f.nomesComerciais.some(n => n.toLowerCase().includes(q)) ||
+        f.indicacoes.some(i => i.toLowerCase().includes(q))
+      )
+      .map(f => ({
+        tipo: "Fármaco",
+        label: f.nome,
+        sub: f.nomesComerciais.slice(0, 2).join(" · "),
+        href: `/psicofarmacologia/biblioteca/moleculas`,
+      })),
+    ...transtornos
+      .filter(t => t.nome.toLowerCase().includes(q) || t.id.toLowerCase().includes(q))
+      .map(t => ({
+        tipo: "Transtorno",
+        label: t.nome,
+        sub: t.id,
+        href: `/psicofarmacologia/biblioteca/transtornos/${t.id}`,
+      })),
+    ...sistemas
+      .filter(s => s.nome.toLowerCase().includes(q) || s.id.toLowerCase().includes(q))
+      .map(s => ({
+        tipo: "Sistema receptorial",
+        label: s.nome,
+        sub: s.id,
+        href: `/psicofarmacologia/biblioteca/receptores/${s.id}`,
+      })),
+  ];
+
   return (
     <AuthGuard>
       <DashboardLayout>
@@ -181,71 +221,127 @@ export default function BibliotecaHubPage() {
             </p>
           </div>
 
-          {/* Grid de seções */}
-          <div className="grid grid-cols-1 gap-4">
-            {secoes.map((s) => {
-              const Icon = s.icon;
-              const { label: statusLabel, cls: statusCls } = statusConfig[s.status];
-              const isDisponivel = s.status !== "breve";
-
-              const CardContent = (
-                <div className={`bg-card border rounded-2xl p-5 transition-all duration-200 ${
-                  isDisponivel
-                    ? "border-border hover:border-primary/30 hover:shadow-[0_4px_16px_rgba(74,108,247,0.06)] cursor-pointer"
-                    : "border-border opacity-80"
-                }`}>
-                  <div className="flex items-start gap-4">
-                    {/* Icon */}
-                    <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 bg-gradient-to-br ${s.gradient}`}>
-                      <Icon size={20} className="text-white" />
-                    </div>
-
-                    {/* Content */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap mb-1">
-                        <p className="font-bold text-foreground text-base">{s.titulo}</p>
-                        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${statusCls}`}>
-                          {s.badge ?? statusLabel}
-                        </span>
-                      </div>
-                      <p className="text-xs text-muted-foreground leading-relaxed mb-3">{s.descricao}</p>
-
-                      {/* Subsecoes */}
-                      <ul className="space-y-1.5">
-                        {s.subsecoes.map((sub) => (
-                          <li key={sub.label} className="flex items-start gap-2">
-                            {sub.disponivel ? (
-                              <span className="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0 mt-1.5" />
-                            ) : (
-                              <Lock size={10} className="text-muted-foreground/40 shrink-0 mt-1" />
-                            )}
-                            <span className={`text-[11px] leading-relaxed ${sub.disponivel ? "text-foreground" : "text-muted-foreground/60"}`}>
-                              {sub.label}
-                            </span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-
-                    {/* Arrow */}
-                    {isDisponivel && (
-                      <ChevronRight size={18} className="text-muted-foreground/50 group-hover:text-primary shrink-0 mt-1 transition-colors" />
-                    )}
-                  </div>
-                </div>
-              );
-
-              return s.href ? (
-                <Link key={s.titulo} href={s.href} className="group block">
-                  {CardContent}
-                </Link>
-              ) : (
-                <div key={s.titulo}>
-                  {CardContent}
-                </div>
-              );
-            })}
+          {/* Search bar */}
+          <div className="relative">
+            <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <input
+              type="text"
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              placeholder="Buscar fármacos, transtornos, sistemas receptoriais..."
+              className="w-full bg-card border border-border rounded-xl pl-9 pr-9 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/30"
+            />
+            {query && (
+              <button
+                type="button"
+                onClick={() => setQuery("")}
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              >
+                <X size={14} />
+              </button>
+            )}
           </div>
+
+          {/* Search results */}
+          {query.length >= 2 && (
+            <div className="bg-card border border-border rounded-2xl overflow-hidden">
+              <div className="px-5 py-3 border-b border-border">
+                <p className="text-xs font-semibold text-muted-foreground">
+                  {results.length} resultado{results.length !== 1 ? "s" : ""} para &quot;{query}&quot;
+                </p>
+              </div>
+              {results.length === 0 ? (
+                <div className="p-8 text-center text-sm text-muted-foreground">Nenhum resultado encontrado.</div>
+              ) : (
+                <div className="divide-y divide-border">
+                  {results.map((r, i) => (
+                    <Link
+                      key={i}
+                      href={r.href}
+                      className="flex items-center gap-4 px-5 py-3.5 hover:bg-muted/20 transition-colors"
+                    >
+                      <div className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-primary/10 text-primary whitespace-nowrap shrink-0">
+                        {r.tipo}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-foreground truncate">{r.label}</p>
+                        {r.sub && <p className="text-xs text-muted-foreground truncate">{r.sub}</p>}
+                      </div>
+                      <ChevronRight size={14} className="text-muted-foreground shrink-0" />
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Grid de seções */}
+          {query.length < 2 && (
+            <div className="grid grid-cols-1 gap-4">
+              {secoes.map((s) => {
+                const Icon = s.icon;
+                const { label: statusLabel, cls: statusCls } = statusConfig[s.status];
+                const isDisponivel = s.status !== "breve";
+
+                const CardContent = (
+                  <div className={`bg-card border rounded-2xl p-5 transition-all duration-200 ${
+                    isDisponivel
+                      ? "border-border hover:border-primary/30 hover:shadow-[0_4px_16px_rgba(74,108,247,0.06)] cursor-pointer"
+                      : "border-border opacity-80"
+                  }`}>
+                    <div className="flex items-start gap-4">
+                      {/* Icon */}
+                      <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 bg-gradient-to-br ${s.gradient}`}>
+                        <Icon size={20} className="text-white" />
+                      </div>
+
+                      {/* Content */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap mb-1">
+                          <p className="font-bold text-foreground text-base">{s.titulo}</p>
+                          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${statusCls}`}>
+                            {s.badge ?? statusLabel}
+                          </span>
+                        </div>
+                        <p className="text-xs text-muted-foreground leading-relaxed mb-3">{s.descricao}</p>
+
+                        {/* Subsecoes */}
+                        <ul className="space-y-1.5">
+                          {s.subsecoes.map((sub) => (
+                            <li key={sub.label} className="flex items-start gap-2">
+                              {sub.disponivel ? (
+                                <span className="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0 mt-1.5" />
+                              ) : (
+                                <Lock size={10} className="text-muted-foreground/40 shrink-0 mt-1" />
+                              )}
+                              <span className={`text-[11px] leading-relaxed ${sub.disponivel ? "text-foreground" : "text-muted-foreground/60"}`}>
+                                {sub.label}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+
+                      {/* Arrow */}
+                      {isDisponivel && (
+                        <ChevronRight size={18} className="text-muted-foreground/50 group-hover:text-primary shrink-0 mt-1 transition-colors" />
+                      )}
+                    </div>
+                  </div>
+                );
+
+                return s.href ? (
+                  <Link key={s.titulo} href={s.href} className="group block">
+                    {CardContent}
+                  </Link>
+                ) : (
+                  <div key={s.titulo}>
+                    {CardContent}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </DashboardLayout>
     </AuthGuard>

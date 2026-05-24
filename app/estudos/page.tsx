@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { GraduationCap, Layers, HelpCircle, BookMarked, ChevronRight } from "lucide-react";
+import { GraduationCap, Layers, HelpCircle, BookMarked, ChevronRight, BarChart3 } from "lucide-react";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { decks } from "@/lib/data/flashcards";
@@ -57,6 +57,21 @@ export default function EstudosPage() {
               <p className="text-xs text-muted-foreground">Flashcards · Questões TEP · Journal Club</p>
             </div>
           </div>
+
+          {/* Analytics shortcut */}
+          <Link
+            href="/estudos/analytics"
+            className="flex items-center gap-3 px-4 py-3 bg-card border border-border rounded-2xl hover:border-primary/30 hover:bg-muted/20 transition-all"
+          >
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: "linear-gradient(135deg, #7C3AED, #4A6CF7)" }}>
+              <BarChart3 size={16} className="text-white" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-foreground">Analytics de Aprendizagem</p>
+              <p className="text-xs text-muted-foreground">Progresso em flashcards, questões e simulados</p>
+            </div>
+            <ChevronRight size={16} className="text-muted-foreground/50 shrink-0" />
+          </Link>
 
           {/* Feature cards */}
           <div className="grid grid-cols-1 gap-4">
