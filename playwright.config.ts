@@ -7,14 +7,30 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
   reporter: "list",
+
+  globalSetup: "./e2e/globalSetup.ts",
+
   use: {
     baseURL: process.env.PLAYWRIGHT_BASE_URL || "https://axon-med.vercel.app",
     trace: "on-first-retry",
   },
+
   projects: [
+    // ── Smoke (sem autenticação — comportamento existente) ──────────────────
     {
-      name: "chromium",
+      name: "smoke",
+      testMatch: "smoke.spec.ts",
       use: { ...devices["Desktop Chrome"] },
+    },
+
+    // ── Autenticado (requer E2E_EMAIL + E2E_PASSWORD) ──────────────────────
+    {
+      name: "authenticated",
+      testMatch: "authenticated.spec.ts",
+      use: {
+        ...devices["Desktop Chrome"],
+        storageState: "e2e/.auth/user.json",
+      },
     },
   ],
 });

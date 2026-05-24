@@ -37,6 +37,10 @@ yarn-error.log*
 # vercel
 .vercel
 
+# E2E auth state (contém tokens reais)
+e2e/.auth/user.json
+.env.e2e.local
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

@@ -421,7 +421,7 @@ export default function HistoricoPage() {
           </div>
 
           {/* Period + tipo filters */}
-          {!loading && consultas.length > 0 && (
+          {!loading && (
             <div className="flex flex-col gap-2">
               <div className="flex gap-1 flex-wrap">
                 {(["tudo","hoje","semana","mes"] as const).map(p => {
