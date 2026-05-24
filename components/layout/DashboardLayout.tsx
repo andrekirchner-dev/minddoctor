@@ -3,6 +3,7 @@ import { Header } from "./Header";
 import { ProfileCard } from "@/components/right-panel/ProfileCard";
 import { CalendarCard } from "@/components/right-panel/CalendarCard";
 import { GlobalBanner } from "@/components/admin/GlobalBanner";
+import { Toaster } from "@/components/ui/Toaster";
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -29,6 +30,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           </div>
         </main>
       </div>
+      <Toaster />
     </div>
   );
 }

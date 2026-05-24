@@ -3,30 +3,52 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { signInWithGoogle } from "@/lib/firebase/auth";
-import { upsertUserProfile } from "@/lib/firebase/firestore";
+import { signInWithGoogle, signOut } from "@/lib/firebase/auth";
+import { upsertUserProfile, getUserProfile } from "@/lib/firebase/firestore";
+import { getAppConfig } from "@/lib/firebase/appConfig";
 import { useAuth } from "@/components/providers/AuthProvider";
+import { AlertTriangle } from "lucide-react";
 
 export default function LoginPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
-  const [error, setError]     = useState<string | null>(null);
+  const [error,   setError]   = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [registroAberto, setRegistroAberto] = useState(true);
+  const [configLoading, setConfigLoading]   = useState(true);
 
   useEffect(() => {
     if (!loading && user) router.replace("/dashboard");
   }, [user, loading, router]);
+
+  useEffect(() => {
+    getAppConfig()
+      .then(c => setRegistroAberto(c.registroAberto))
+      .catch(() => setRegistroAberto(true))
+      .finally(() => setConfigLoading(false));
+  }, []);
 
   async function handleGoogleSignIn() {
     try {
       setError(null);
       setPending(true);
       const u = await signInWithGoogle();
+
+      // Check if this is a new user when registration is closed
+      if (!registroAberto) {
+        const existing = await getUserProfile(u.uid);
+        if (!existing) {
+          await signOut();
+          setError("O registro de novos usuários está temporariamente fechado. Entre em contato com o administrador.");
+          setPending(false);
+          return;
+        }
+      }
+
       await upsertUserProfile(u);
       router.replace("/dashboard");
     } catch (err) {
       const e = err as { code?: string; message?: string };
-      // popup fechado pelo usuário — não exibe erro
       if (e.code === "auth/popup-closed-by-user" || e.code === "auth/cancelled-popup-request") {
         setPending(false);
         return;
@@ -52,14 +74,22 @@ export default function LoginPage() {
           </p>
 
           {error && (
-            <div className="mb-4 px-4 py-3 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-xs leading-relaxed">
+            <div className="mb-4 px-4 py-3 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-xs leading-relaxed flex items-start gap-2">
+              <AlertTriangle size={13} className="shrink-0 mt-0.5" />
               {error}
+            </div>
+          )}
+
+          {!registroAberto && !configLoading && (
+            <div className="mb-4 px-4 py-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-400 text-xs leading-relaxed flex items-start gap-2">
+              <AlertTriangle size={13} className="shrink-0 mt-0.5" />
+              Registro de novos usuários temporariamente fechado. Usuários existentes podem continuar entrando normalmente.
             </div>
           )}
 
           <button
             onClick={handleGoogleSignIn}
-            disabled={pending}
+            disabled={pending || configLoading}
             className="w-full flex items-center justify-center gap-3 py-3 px-4 rounded-xl border border-border bg-background hover:bg-muted transition-colors text-sm font-medium text-foreground disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <GoogleIcon />

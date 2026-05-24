@@ -5,13 +5,15 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
   ChevronLeft, ClipboardList, Search, X, ChevronDown, ChevronUp,
-  Copy, Check, Plus, FileText, Calendar, User, TrendingUp,
+  Copy, Check, Plus, FileText, Calendar, User, Pencil, Loader2,
 } from "lucide-react";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { useAuth } from "@/components/providers/AuthProvider";
-import { getConsultas, deleteConsulta, type ConsultaRecord } from "@/lib/firebase/consultas";
+import { getConsultas, deleteConsulta, updateConsulta, type ConsultaRecord } from "@/lib/firebase/consultas";
+import { toast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
+import { createPortal } from "react-dom";
 
 const TIPOS_LABEL: Record<string, string> = {
   "nova-consulta":   "Nova consulta",
@@ -24,6 +26,8 @@ const TIPOS_LABEL: Record<string, string> = {
   "ajuste-med":      "Ajuste medicamentoso",
 };
 
+const RISCO_OPTIONS = ["baixo", "moderado", "alto", "indeterminado"];
+
 function formatDateTime(seconds: number): string {
   const d = new Date(seconds * 1000);
   return d.toLocaleDateString("pt-BR", {
@@ -32,20 +36,154 @@ function formatDateTime(seconds: number): string {
   });
 }
 
-function ConsultaCard({ record, expanded, onToggle, onDelete, copying, onCopy }: {
+// ─── Edit Modal ────────────────────────────────────────────────────────────────
+
+function EditModal({ record, onClose, onSaved }: {
+  record: ConsultaRecord;
+  onClose: () => void;
+  onSaved: (updated: ConsultaRecord) => void;
+}) {
+  const [diagnostico,   setDiagnostico]   = useState(record.diagnosticoPrincipal ?? "");
+  const [nivelRisco,    setNivelRisco]    = useState(record.nivelRisco ?? "");
+  const [condutaFarma,  setCondutaFarma]  = useState(record.condutaFarma ?? "");
+  const [prontuario,    setProntuario]    = useState(record.prontuarioBase ?? "");
+  const [saving,        setSaving]        = useState(false);
+
+  const backdropRef = useRef<HTMLDivElement>(null);
+
+  async function handleSave() {
+    setSaving(true);
+    try {
+      const updates = {
+        diagnosticoPrincipal: diagnostico,
+        nivelRisco,
+        condutaFarma,
+        prontuarioBase: prontuario,
+      };
+      await updateConsulta(record.id, updates);
+      onSaved({ ...record, ...updates });
+      toast.success("Consulta atualizada com sucesso.");
+      onClose();
+    } catch {
+      toast.error("Erro ao salvar alterações. Tente novamente.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return createPortal(
+    <div
+      ref={backdropRef}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+      onClick={e => { if (e.target === backdropRef.current) onClose(); }}
+    >
+      <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-border shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
+              <Pencil size={16} className="text-primary" />
+            </div>
+            <div>
+              <h2 className="text-base font-bold text-foreground">Editar Consulta</h2>
+              <p className="text-xs text-muted-foreground truncate max-w-xs">
+                {record.patientName || "Paciente sem identificação"}
+              </p>
+            </div>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
+            <X size={16} />
+          </button>
+        </div>
+
+        {/* Form */}
+        <div className="px-6 py-5 space-y-4 overflow-y-auto flex-1">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Diagnóstico principal</label>
+              <input
+                type="text"
+                value={diagnostico}
+                onChange={e => setDiagnostico(e.target.value)}
+                placeholder="Ex: F32.1 — Episódio depressivo moderado"
+                className="w-full text-sm bg-background border border-border rounded-xl px-3 py-2.5 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Nível de risco</label>
+              <select
+                value={nivelRisco}
+                onChange={e => setNivelRisco(e.target.value)}
+                className="w-full text-sm bg-background border border-border rounded-xl px-3 py-2.5 text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+              >
+                <option value="">Não informado</option>
+                {RISCO_OPTIONS.map(r => (
+                  <option key={r} value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Conduta farmacológica</label>
+            <textarea
+              value={condutaFarma}
+              onChange={e => setCondutaFarma(e.target.value)}
+              rows={3}
+              placeholder="Prescrições, ajustes de dose, orientações..."
+              className="w-full text-sm bg-background border border-border rounded-xl px-3 py-2.5 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Prontuário</label>
+            <textarea
+              value={prontuario}
+              onChange={e => setProntuario(e.target.value)}
+              rows={10}
+              className="w-full text-sm bg-background border border-border rounded-xl px-3 py-2.5 text-foreground font-mono focus:outline-none focus:ring-2 focus:ring-primary/30 resize-y"
+            />
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 pb-6 pt-4 border-t border-border flex gap-3 shrink-0">
+          <button onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-border text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+            Cancelar
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-primary text-white text-sm font-semibold hover:bg-primary/90 disabled:opacity-50 transition-colors"
+          >
+            {saving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+            {saving ? "Salvando..." : "Salvar alterações"}
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+// ─── ConsultaCard ──────────────────────────────────────────────────────────────
+
+import { useRef } from "react";
+
+function ConsultaCard({ record, expanded, onToggle, onDelete, onEdit, copying, onCopy }: {
   record: ConsultaRecord;
   expanded: boolean;
   onToggle: () => void;
   onDelete: () => void;
+  onEdit: () => void;
   copying: boolean;
   onCopy: () => void;
 }) {
-  const date = record.createdAt?.seconds ? formatDateTime(record.createdAt.seconds) : "—";
+  const date      = record.createdAt?.seconds ? formatDateTime(record.createdAt.seconds) : "—";
   const tipoLabel = TIPOS_LABEL[record.tipo] || record.tipo;
 
   return (
     <div className="bg-card border border-border rounded-2xl overflow-hidden">
-      {/* Header */}
       <button
         type="button"
         onClick={onToggle}
@@ -79,10 +217,8 @@ function ConsultaCard({ record, expanded, onToggle, onDelete, copying, onCopy }:
         </div>
       </button>
 
-      {/* Expanded */}
       {expanded && (
         <div className="border-t border-border">
-          {/* Prontuário */}
           {record.prontuarioBase && (
             <div className="p-5 space-y-3">
               <div className="flex items-center justify-between">
@@ -110,8 +246,7 @@ function ConsultaCard({ record, expanded, onToggle, onDelete, copying, onCopy }:
             </div>
           )}
 
-          {/* Actions */}
-          <div className="px-5 pb-4 flex items-center gap-2">
+          <div className="px-5 pb-4 flex items-center gap-2 flex-wrap">
             <Link
               href="/consulta/nova"
               onClick={() => {
@@ -123,6 +258,14 @@ function ConsultaCard({ record, expanded, onToggle, onDelete, copying, onCopy }:
               <Plus size={12} />
               Usar como base de retorno
             </Link>
+            <button
+              type="button"
+              onClick={onEdit}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border border-border text-muted-foreground hover:border-primary/30 hover:text-primary transition-all"
+            >
+              <Pencil size={12} />
+              Editar
+            </button>
             <button
               type="button"
               onClick={onDelete}
@@ -138,23 +281,25 @@ function ConsultaCard({ record, expanded, onToggle, onDelete, copying, onCopy }:
   );
 }
 
-export default function HistoricoPage() {
-  const { user } = useAuth();
-  const searchParams = useSearchParams();
-  const focusId = searchParams.get("id");
+// ─── Page ─────────────────────────────────────────────────────────────────────
 
-  const [consultas, setConsultas] = useState<ConsultaRecord[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [query, setQuery] = useState("");
-  const [expandedId, setExpandedId] = useState<string | null>(focusId);
-  const [copied, setCopied] = useState<string | false>(false);
+export default function HistoricoPage() {
+  const { user }       = useAuth();
+  const searchParams   = useSearchParams();
+  const focusId        = searchParams.get("id");
+
+  const [consultas,   setConsultas]   = useState<ConsultaRecord[]>([]);
+  const [loading,     setLoading]     = useState(true);
+  const [queryText,   setQueryText]   = useState("");
+  const [expandedId,  setExpandedId]  = useState<string | null>(focusId);
+  const [copied,      setCopied]      = useState<string | false>(false);
+  const [editRecord,  setEditRecord]  = useState<ConsultaRecord | null>(null);
 
   const load = useCallback(async () => {
     if (!user) return;
     setLoading(true);
     try {
-      const data = await getConsultas(user.uid);
-      setConsultas(data);
+      setConsultas(await getConsultas(user.uid));
     } finally {
       setLoading(false);
     }
@@ -163,8 +308,8 @@ export default function HistoricoPage() {
   useEffect(() => { load(); }, [load]);
 
   const filtered = consultas.filter(c => {
-    if (!query) return true;
-    const q = query.toLowerCase();
+    if (!queryText) return true;
+    const q = queryText.toLowerCase();
     return (
       c.patientName?.toLowerCase().includes(q) ||
       c.diagnosticoPrincipal?.toLowerCase().includes(q) ||
@@ -178,6 +323,7 @@ export default function HistoricoPage() {
     await deleteConsulta(id);
     setConsultas(prev => prev.filter(c => c.id !== id));
     if (expandedId === id) setExpandedId(null);
+    toast.success("Consulta excluída.");
   }
 
   async function handleCopy(record: ConsultaRecord) {
@@ -186,22 +332,20 @@ export default function HistoricoPage() {
     setTimeout(() => setCopied(false), 2000);
   }
 
+  function handleSavedEdit(updated: ConsultaRecord) {
+    setConsultas(prev => prev.map(c => c.id === updated.id ? updated : c));
+  }
+
   return (
     <AuthGuard>
       <DashboardLayout>
         <div className="space-y-5 pb-8">
           {/* Header */}
           <div className="flex items-center gap-3">
-            <Link
-              href="/consulta"
-              className="w-8 h-8 rounded-lg border border-border flex items-center justify-center text-muted-foreground hover:text-foreground hover:border-primary/30 transition-colors shrink-0"
-            >
+            <Link href="/consulta" className="w-8 h-8 rounded-lg border border-border flex items-center justify-center text-muted-foreground hover:text-foreground hover:border-primary/30 transition-colors shrink-0">
               <ChevronLeft size={16} />
             </Link>
-            <div
-              className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-              style={{ background: "linear-gradient(135deg, #06B6D4, #0891B2)" }}
-            >
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: "linear-gradient(135deg, #06B6D4, #0891B2)" }}>
               <ClipboardList size={20} className="text-white" />
             </div>
             <div className="flex-1">
@@ -210,10 +354,7 @@ export default function HistoricoPage() {
                 {loading ? "Carregando..." : `${consultas.length} prontuário${consultas.length !== 1 ? "s" : ""} registrado${consultas.length !== 1 ? "s" : ""}`}
               </p>
             </div>
-            <Link
-              href="/consulta/nova"
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors shrink-0"
-            >
+            <Link href="/consulta/nova" className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors shrink-0">
               <Plus size={13} />
               Nova consulta
             </Link>
@@ -224,13 +365,13 @@ export default function HistoricoPage() {
             <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <input
               type="text"
-              value={query}
-              onChange={e => setQuery(e.target.value)}
+              value={queryText}
+              onChange={e => setQueryText(e.target.value)}
               placeholder="Buscar por paciente, CID ou tipo de consulta..."
               className="w-full bg-card border border-border rounded-xl pl-9 pr-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/30"
             />
-            {query && (
-              <button type="button" onClick={() => setQuery("")} className="absolute right-3.5 top-1/2 -translate-y-1/2">
+            {queryText && (
+              <button type="button" onClick={() => setQueryText("")} className="absolute right-3.5 top-1/2 -translate-y-1/2">
                 <X size={14} className="text-muted-foreground hover:text-foreground" />
               </button>
             )}
@@ -242,8 +383,8 @@ export default function HistoricoPage() {
               {[
                 { label: "Hoje", value: consultas.filter(c => {
                   const d = new Date((c.createdAt?.seconds ?? 0) * 1000);
-                  const today = new Date(); today.setHours(0,0,0,0);
-                  return d >= today;
+                  const t = new Date(); t.setHours(0,0,0,0);
+                  return d >= t;
                 }).length },
                 { label: "Esta semana", value: consultas.filter(c => {
                   const d = new Date((c.createdAt?.seconds ?? 0) * 1000);
@@ -280,8 +421,6 @@ export default function HistoricoPage() {
                         </div>
                         <div className="h-2.5 w-16 rounded bg-muted shrink-0" />
                       </div>
-                      <div className="h-2.5 w-full rounded bg-muted" />
-                      <div className="h-2.5 w-3/4 rounded bg-muted" />
                     </div>
                   </div>
                 </div>
@@ -292,21 +431,18 @@ export default function HistoricoPage() {
           {!loading && filtered.length === 0 && (
             <div className="flex flex-col items-center justify-center gap-4 py-16">
               <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center">
-                {query ? <Search size={24} className="text-muted-foreground/40" /> : <User size={24} className="text-muted-foreground/40" />}
+                {queryText ? <Search size={24} className="text-muted-foreground/40" /> : <User size={24} className="text-muted-foreground/40" />}
               </div>
               <div className="text-center">
                 <p className="font-semibold text-foreground text-sm">
-                  {query ? "Nenhuma consulta encontrada" : "Nenhuma consulta registrada"}
+                  {queryText ? "Nenhuma consulta encontrada" : "Nenhuma consulta registrada"}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {query ? `Nenhum resultado para "${query}"` : "As consultas confirmadas aparecerão aqui automaticamente."}
+                  {queryText ? `Nenhum resultado para "${queryText}"` : "As consultas confirmadas aparecerão aqui automaticamente."}
                 </p>
               </div>
-              {!query && (
-                <Link
-                  href="/consulta/nova"
-                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors"
-                >
+              {!queryText && (
+                <Link href="/consulta/nova" className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors">
                   <Plus size={15} />
                   Iniciar primeira consulta
                 </Link>
@@ -323,6 +459,7 @@ export default function HistoricoPage() {
                   expanded={expandedId === record.id}
                   onToggle={() => setExpandedId(expandedId === record.id ? null : record.id)}
                   onDelete={() => handleDelete(record.id)}
+                  onEdit={() => setEditRecord(record)}
                   copying={copied === record.id}
                   onCopy={() => handleCopy(record)}
                 />
@@ -331,6 +468,14 @@ export default function HistoricoPage() {
           )}
         </div>
       </DashboardLayout>
+
+      {editRecord && (
+        <EditModal
+          record={editRecord}
+          onClose={() => setEditRecord(null)}
+          onSaved={handleSavedEdit}
+        />
+      )}
     </AuthGuard>
   );
 }

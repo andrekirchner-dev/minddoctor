@@ -4,12 +4,12 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
 import {
   ChevronLeft, ChevronRight, Plus, X, Trash2,
-  Loader2, CalendarDays, Clock,
+  Loader2, CalendarDays, Clock, Pencil,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/components/providers/AuthProvider";
 import {
-  getEventos, saveEvento, deleteEvento, eventoNoDia,
+  getEventos, saveEvento, updateEvento, deleteEvento, eventoNoDia,
   TIPO_LABEL, TIPO_COLOR, TIPO_BG,
   type Evento, type TipoEvento,
 } from "@/lib/firebase/eventos";
@@ -51,23 +51,26 @@ interface ModalProps {
   defaultDate: string;
   onClose: () => void;
   onSaved: (e: Evento) => void;
+  onUpdated?: (e: Evento) => void;
   userId: string;
+  editing?: Evento; // when set, modal is in edit mode
 }
 
-function EventoModal({ defaultDate, onClose, onSaved, userId }: ModalProps) {
-  const [titulo,       setTitulo]       = useState("");
-  const [tipo,         setTipo]         = useState<TipoEvento>("consulta");
-  const [dataInicio,   setDataInicio]   = useState(defaultDate);
-  const [multiDia,     setMultiDia]     = useState(false);
-  const [dataFim,      setDataFim]      = useState(defaultDate);
-  const [hora,         setHora]         = useState("08:00");
-  const [temHoraFim,   setTemHoraFim]   = useState(false);
-  const [horaFim,      setHoraFim]      = useState("09:00");
-  const [pacienteNome, setPacienteNome] = useState("");
+function EventoModal({ defaultDate, onClose, onSaved, onUpdated, userId, editing }: ModalProps) {
+  const isEdit = !!editing;
+
+  const [titulo,       setTitulo]       = useState(editing?.titulo       ?? "");
+  const [tipo,         setTipo]         = useState<TipoEvento>(editing?.tipo ?? "consulta");
+  const [dataInicio,   setDataInicio]   = useState(editing?.dataInicio   ?? defaultDate);
+  const [multiDia,     setMultiDia]     = useState(editing ? editing.dataInicio !== editing.dataFim : false);
+  const [dataFim,      setDataFim]      = useState(editing?.dataFim      ?? defaultDate);
+  const [hora,         setHora]         = useState(editing?.hora         ?? "08:00");
+  const [temHoraFim,   setTemHoraFim]   = useState(!!editing?.horaFim);
+  const [horaFim,      setHoraFim]      = useState(editing?.horaFim      ?? "09:00");
+  const [pacienteNome, setPacienteNome] = useState(editing?.pacienteNome ?? "");
   const [saving,       setSaving]       = useState(false);
   const [error,        setError]        = useState("");
 
-  // keep dataFim >= dataInicio
   useEffect(() => {
     if (!multiDia) setDataFim(dataInicio);
     else if (dataFim < dataInicio) setDataFim(dataInicio);
@@ -78,7 +81,7 @@ function EventoModal({ defaultDate, onClose, onSaved, userId }: ModalProps) {
     setSaving(true);
     setError("");
     try {
-      const novo: Omit<Evento, "id" | "createdAt"> = {
+      const payload: Omit<Evento, "id" | "createdAt"> = {
         userId,
         dataInicio,
         dataFim: multiDia ? dataFim : dataInicio,
@@ -88,8 +91,14 @@ function EventoModal({ defaultDate, onClose, onSaved, userId }: ModalProps) {
         tipo,
         ...(pacienteNome.trim() ? { pacienteNome: pacienteNome.trim() } : {}),
       };
-      const id = await saveEvento(novo);
-      onSaved({ ...novo, id, createdAt: { seconds: Date.now() / 1000, nanoseconds: 0 } as any });
+
+      if (isEdit && editing) {
+        await updateEvento(editing.id, payload);
+        onUpdated?.({ ...editing, ...payload });
+      } else {
+        const id = await saveEvento(payload);
+        onSaved({ ...payload, id, createdAt: { seconds: Date.now() / 1000, nanoseconds: 0 } as any });
+      }
       onClose();
     } catch {
       setError("Erro ao salvar. Tente novamente.");
@@ -114,7 +123,7 @@ function EventoModal({ defaultDate, onClose, onSaved, userId }: ModalProps) {
             <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
               <CalendarDays size={18} className="text-primary" />
             </div>
-            <h2 className="text-base font-bold text-foreground">Novo Compromisso</h2>
+            <h2 className="text-base font-bold text-foreground">{isEdit ? "Editar Compromisso" : "Novo Compromisso"}</h2>
           </div>
           <button
             onClick={onClose}
@@ -309,7 +318,7 @@ function EventoModal({ defaultDate, onClose, onSaved, userId }: ModalProps) {
             className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-primary text-white text-sm font-semibold hover:bg-primary/90 disabled:opacity-50 transition-colors"
           >
             {saving ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
-            {saving ? "Salvando..." : "Salvar compromisso"}
+            {saving ? "Salvando..." : isEdit ? "Salvar alterações" : "Salvar compromisso"}
           </button>
         </div>
       </div>
@@ -331,6 +340,7 @@ export function CalendarCard() {
   const [eventos,    setEventos]    = useState<Evento[]>([]);
   const [loading,    setLoading]    = useState(true);
   const [showModal,  setShowModal]  = useState(false);
+  const [editingEvento, setEditingEvento] = useState<Evento | undefined>(undefined);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -345,6 +355,16 @@ export function CalendarCard() {
   function handleSaved(e: Evento) {
     setEventos(prev => {
       const updated = [...prev, e];
+      updated.sort((a, b) =>
+        a.dataInicio.localeCompare(b.dataInicio) || a.hora.localeCompare(b.hora)
+      );
+      return updated;
+    });
+  }
+
+  function handleUpdated(e: Evento) {
+    setEventos(prev => {
+      const updated = prev.map(x => x.id === e.id ? e : x);
       updated.sort((a, b) =>
         a.dataInicio.localeCompare(b.dataInicio) || a.hora.localeCompare(b.hora)
       );
@@ -511,16 +531,24 @@ export function CalendarCard() {
                       )}
                     </div>
                   </div>
-                  <button
-                    onClick={() => handleDelete(e.id)}
-                    disabled={deletingId === e.id}
-                    className="opacity-0 group-hover:opacity-100 w-5 h-5 rounded flex items-center justify-center text-muted-foreground hover:text-red-500 transition-all shrink-0 mt-0.5"
-                  >
-                    {deletingId === e.id
-                      ? <Loader2 size={10} className="animate-spin" />
-                      : <Trash2 size={10} />
-                    }
-                  </button>
+                  <div className="opacity-0 group-hover:opacity-100 flex items-center gap-0.5 transition-all shrink-0 mt-0.5">
+                    <button
+                      onClick={() => { setEditingEvento(e); setShowModal(true); }}
+                      className="w-5 h-5 rounded flex items-center justify-center text-muted-foreground hover:text-primary transition-colors"
+                    >
+                      <Pencil size={10} />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(e.id)}
+                      disabled={deletingId === e.id}
+                      className="w-5 h-5 rounded flex items-center justify-center text-muted-foreground hover:text-red-500 transition-colors"
+                    >
+                      {deletingId === e.id
+                        ? <Loader2 size={10} className="animate-spin" />
+                        : <Trash2 size={10} />
+                      }
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -568,8 +596,10 @@ export function CalendarCard() {
         <EventoModal
           defaultDate={selected}
           userId={user.uid}
-          onClose={() => setShowModal(false)}
+          editing={editingEvento}
+          onClose={() => { setShowModal(false); setEditingEvento(undefined); }}
           onSaved={handleSaved}
+          onUpdated={handleUpdated}
         />
       )}
     </>

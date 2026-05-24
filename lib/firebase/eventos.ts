@@ -1,5 +1,5 @@
 import {
-  collection, addDoc, deleteDoc, doc,
+  collection, addDoc, updateDoc, deleteDoc, doc,
   query, where, getDocs, serverTimestamp, type Timestamp,
 } from "firebase/firestore";
 import { db } from "./config";
@@ -61,6 +61,11 @@ type NewEvento = Omit<Evento, "id" | "createdAt">;
 /** Retorna true se o dia ISO cai dentro do range do evento */
 export function eventoNoDia(e: Evento, dia: string): boolean {
   return e.dataInicio <= dia && dia <= e.dataFim;
+}
+
+export async function updateEvento(id: string, data: Partial<NewEvento>): Promise<void> {
+  cache.clear();
+  await updateDoc(doc(db, "eventos", id), { ...data });
 }
 
 export async function saveEvento(data: NewEvento): Promise<string> {

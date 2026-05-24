@@ -48,6 +48,8 @@ type Tab = "overview" | "usuarios" | "configuracoes" | "comunicados";
 
 type PlanFilter = "todos" | "free" | "pro" | "admin";
 
+const PAGE_SIZE = 15;
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function formatDate(ts: unknown): string {
@@ -344,6 +346,7 @@ export default function AdminPage() {
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [planFilter, setPlanFilter] = useState<PlanFilter>("todos");
+  const [page, setPage] = useState(0);
 
   // Consultas
   const [consultasCount, setConsultasCount] = useState({ total: 0, mes: 0 });
@@ -410,6 +413,9 @@ export default function AdminPage() {
     })
     .slice(0, 5);
 
+  // Reset page when search/filter changes
+  useEffect(() => { setPage(0); }, [search, planFilter]);
+
   // ── Filtered users for Usuários tab ──────────────────────────────────────
 
   const filteredUsers = users.filter((u) => {
@@ -424,6 +430,9 @@ export default function AdminPage() {
       (planFilter === "admin" && u.role === "admin");
     return matchSearch && matchFilter;
   });
+
+  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / PAGE_SIZE));
+  const pagedUsers = filteredUsers.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
   // ── User action handlers ──────────────────────────────────────────────────
 
@@ -682,7 +691,7 @@ export default function AdminPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredUsers.map((u) => (
+                    {pagedUsers.map((u) => (
                       <UserRow
                         key={u.uid}
                         u={u}
@@ -697,6 +706,31 @@ export default function AdminPage() {
               </div>
             )}
           </div>
+
+          {/* Pagination controls */}
+          {!usersLoading && filteredUsers.length > PAGE_SIZE && (
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-xs text-muted-foreground">
+                Página {page + 1} de {totalPages} &middot; {filteredUsers.length} usuário{filteredUsers.length !== 1 ? "s" : ""}
+              </span>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setPage((p) => Math.max(0, p - 1))}
+                  disabled={page === 0}
+                  className="px-3 py-1.5 rounded-lg text-xs font-medium bg-muted text-muted-foreground hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  Anterior
+                </button>
+                <button
+                  onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+                  disabled={page >= totalPages - 1}
+                  className="px-3 py-1.5 rounded-lg text-xs font-medium bg-muted text-muted-foreground hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  Próxima
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
