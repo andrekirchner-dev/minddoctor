@@ -17,12 +17,12 @@ export type TipoEvento =
   | "outro";
 
 export const TIPO_LABEL: Record<TipoEvento, string> = {
-  consulta:    "Consulta",
-  retorno:     "Retorno",
-  escala:      "Aplicação de Escala",
-  plantao:     "Plantão",
-  supervisao:  "Supervisão",
-  outro:       "Outro",
+  consulta:   "Consulta",
+  retorno:    "Retorno",
+  escala:     "Aplicação de Escala",
+  plantao:    "Plantão",
+  supervisao: "Supervisão",
+  outro:      "Outro",
 };
 
 export const TIPO_COLOR: Record<TipoEvento, string> = {
@@ -34,11 +34,22 @@ export const TIPO_COLOR: Record<TipoEvento, string> = {
   outro:      "#6B7280",
 };
 
+export const TIPO_BG: Record<TipoEvento, string> = {
+  consulta:   "#4A6CF715",
+  retorno:    "#7B5EA715",
+  escala:     "#06B6D415",
+  plantao:    "#D6282815",
+  supervisao: "#F4A26115",
+  outro:      "#6B728015",
+};
+
 export interface Evento {
   id: string;
   userId: string;
-  data: string;       // "YYYY-MM-DD"
-  hora: string;       // "HH:MM"
+  dataInicio: string;   // "YYYY-MM-DD"
+  dataFim: string;      // "YYYY-MM-DD" — igual a dataInicio para eventos de 1 dia
+  hora: string;         // "HH:MM"
+  horaFim?: string;     // "HH:MM" opcional
   titulo: string;
   tipo: TipoEvento;
   pacienteNome?: string;
@@ -46,6 +57,11 @@ export interface Evento {
 }
 
 type NewEvento = Omit<Evento, "id" | "createdAt">;
+
+/** Retorna true se o dia ISO cai dentro do range do evento */
+export function eventoNoDia(e: Evento, dia: string): boolean {
+  return e.dataInicio <= dia && dia <= e.dataFim;
+}
 
 export async function saveEvento(data: NewEvento): Promise<string> {
   cache.delete(data.userId);
@@ -67,7 +83,9 @@ export async function getEventos(userId: string): Promise<Evento[]> {
     query(collection(db, "eventos"), where("userId", "==", userId))
   );
   const docs = snap.docs.map(d => ({ id: d.id, ...d.data() } as Evento));
-  docs.sort((a, b) => a.data.localeCompare(b.data) || a.hora.localeCompare(b.hora));
+  docs.sort((a, b) =>
+    a.dataInicio.localeCompare(b.dataInicio) || a.hora.localeCompare(b.hora)
+  );
   cache.set(userId, docs);
   return docs;
 }
