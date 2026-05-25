@@ -1,0 +1,94 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helper functions ────────────────────────────────────────────────────
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        exists(/databases/$(database)/documents/usuarios/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.role == "admin";
+    }
+
+    function isValidUserId() {
+      return request.resource.data.userId == request.auth.uid;
+    }
+
+    // ── Users (perfis) ──────────────────────────────────────────────────────
+    // Nota: coleção é "usuarios" (conforme firestore.ts, não "users")
+    match /usuarios/{userId} {
+      // Usuário lê/escreve o próprio perfil; admin lê todos
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId) || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // ── Consultas ───────────────────────────────────────────────────────────
+    match /consultas/{consultaId} {
+      allow read: if isOwner(resource.data.userId) || isAdmin();
+      allow create: if isAuthenticated() && isValidUserId();
+      allow update: if isOwner(resource.data.userId);
+      allow delete: if isOwner(resource.data.userId) || isAdmin();
+    }
+
+    // ── Casos Clínicos ──────────────────────────────────────────────────────
+    match /casos/{casoId} {
+      allow read: if isOwner(resource.data.userId) || isAdmin();
+      allow create: if isAuthenticated() && isValidUserId();
+      allow update: if isOwner(resource.data.userId);
+      allow delete: if isOwner(resource.data.userId);
+    }
+
+    // ── Eventos / Calendário ────────────────────────────────────────────────
+    match /eventos/{eventoId} {
+      allow read: if isOwner(resource.data.userId) || isAdmin();
+      allow create: if isAuthenticated() && isValidUserId();
+      allow update: if isOwner(resource.data.userId);
+      allow delete: if isOwner(resource.data.userId);
+    }
+
+    // ── Evoluções Clínicas ──────────────────────────────────────────────────
+    match /evolucoes/{evolucaoId} {
+      allow read: if isOwner(resource.data.userId) || isAdmin();
+      allow create: if isAuthenticated() && isValidUserId();
+      allow update: if isOwner(resource.data.userId);
+      allow delete: if isOwner(resource.data.userId);
+    }
+
+    // ── Planos de Crise ─────────────────────────────────────────────────────
+    match /planosCrise/{planoId} {
+      allow read: if isOwner(resource.data.userId) || isAdmin();
+      allow create: if isAuthenticated() && isValidUserId();
+      allow update: if isOwner(resource.data.userId);
+      allow delete: if isOwner(resource.data.userId);
+    }
+
+    // ── Leitos ──────────────────────────────────────────────────────────────
+    match /leitos/{leitoId} {
+      allow read: if isOwner(resource.data.userId) || isAdmin();
+      allow create: if isAuthenticated() && isValidUserId();
+      allow update: if isOwner(resource.data.userId);
+      allow delete: if isOwner(resource.data.userId);
+    }
+
+    // ── Configuração global do app (appConfig) ──────────────────────────────
+    match /appConfig/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // ── Fallback: negar tudo que não foi explicitamente permitido ───────────
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

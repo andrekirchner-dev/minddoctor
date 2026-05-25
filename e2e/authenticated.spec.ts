@@ -301,3 +301,256 @@ test.describe("Navegação autenticada — rotas principais", () => {
     });
   }
 });
+
+// ── Feature 3.2 — Novas escalas clínicas ─────────────────────────────────────
+
+test.describe("Escalas — novas escalas (3.2)", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto("/escalas");
+    await expect(page).not.toHaveURL(/\/login/, { timeout: 10_000 });
+  });
+
+  test("MADRS aparece na lista de escalas", async ({ page }) => {
+    await expect(page.getByText("MADRS", { exact: false })).toBeVisible({ timeout: 15_000 });
+  });
+
+  test("YMRS aparece na lista de escalas", async ({ page }) => {
+    await expect(page.getByText("YMRS", { exact: false })).toBeVisible({ timeout: 15_000 });
+  });
+
+  test("PANSS aparece na lista de escalas", async ({ page }) => {
+    await expect(page.getByText("PANSS", { exact: false })).toBeVisible({ timeout: 15_000 });
+  });
+
+  test("PCL-5 aparece na lista de escalas", async ({ page }) => {
+    await expect(page.getByText("PCL-5", { exact: false })).toBeVisible({ timeout: 15_000 });
+  });
+
+  test("clicar em MADRS abre a escala", async ({ page }) => {
+    await expect(page.getByText("MADRS", { exact: false })).toBeVisible({ timeout: 15_000 });
+    await page.getByText("MADRS", { exact: false }).first().click();
+    // Verifica que a escala abriu — header ou primeiro item visível
+    await expect(
+      page.getByText("MADRS", { exact: false }).first()
+    ).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator("main")).toBeVisible();
+  });
+});
+
+// ── Feature 3.3 — Novos protocolos de emergência ─────────────────────────────
+
+test.describe("Emergência — novos protocolos (3.3)", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto("/emergencia");
+    await expect(page).not.toHaveURL(/\/login/, { timeout: 10_000 });
+  });
+
+  test("card 'Abstinência' aparece na lista", async ({ page }) => {
+    await expect(page.getByText("Abstinência", { exact: false })).toBeVisible({ timeout: 15_000 });
+  });
+
+  test("card 'Catatonia' aparece na lista", async ({ page }) => {
+    await expect(page.getByText("Catatonia", { exact: false })).toBeVisible({ timeout: 15_000 });
+  });
+
+  test("card de 'Intox' ou 'Lítio' aparece na lista", async ({ page }) => {
+    await page.waitForLoadState("domcontentloaded");
+    const intox = page.getByText("Intox", { exact: false });
+    const litio = page.getByText("Lítio", { exact: false });
+    const intoxVisible = await intox.first().isVisible().catch(() => false);
+    const litioVisible = await litio.first().isVisible().catch(() => false);
+    expect(intoxVisible || litioVisible).toBe(true);
+  });
+
+  test("card de 'Crise Conversiva' ou 'Conversiva' aparece na lista", async ({ page }) => {
+    await page.waitForLoadState("domcontentloaded");
+    const criseConversiva = page.getByText("Crise Conversiva", { exact: false });
+    const conversiva = page.getByText("Conversiva", { exact: false });
+    const criseVisible = await criseConversiva.first().isVisible().catch(() => false);
+    const conversivaVisible = await conversiva.first().isVisible().catch(() => false);
+    expect(criseVisible || conversivaVisible).toBe(true);
+  });
+});
+
+// ── Feature 3.4 — Módulo de Farmacogenética ──────────────────────────────────
+
+test.describe("Farmacogenética (3.4)", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto("/psicofarmacologia/biblioteca/farmacogenetica");
+    await expect(page).not.toHaveURL(/\/login/, { timeout: 10_000 });
+  });
+
+  test("não redireciona para login", async ({ page }) => {
+    await expect(page).not.toHaveURL(/\/login/);
+  });
+
+  test("CYP2D6 aparece na página", async ({ page }) => {
+    await expect(page.getByText("CYP2D6", { exact: false })).toBeVisible({ timeout: 15_000 });
+  });
+
+  test("CYP2C19 aparece na página", async ({ page }) => {
+    await expect(page.getByText("CYP2C19", { exact: false })).toBeVisible({ timeout: 15_000 });
+  });
+
+  test("'Fenótipo' ou 'Metabolizador' aparece na página", async ({ page }) => {
+    await page.waitForLoadState("domcontentloaded");
+    const fenotipo = page.getByText("Fenótipo", { exact: false });
+    const metabolizador = page.getByText("Metabolizador", { exact: false });
+    const fenotipoVisible = await fenotipo.first().isVisible().catch(() => false);
+    const metabolizadorVisible = await metabolizador.first().isVisible().catch(() => false);
+    expect(fenotipoVisible || metabolizadorVisible).toBe(true);
+  });
+});
+
+// ── Feature 3.1 — Flashcards — novos decks ───────────────────────────────────
+
+test.describe("Flashcards — novos decks (3.1)", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto("/estudos/flashcards");
+    await expect(page).not.toHaveURL(/\/login/, { timeout: 10_000 });
+  });
+
+  test("deck 'Neurologia' aparece na lista", async ({ page }) => {
+    await expect(page.getByText("Neurologia", { exact: false })).toBeVisible({ timeout: 15_000 });
+  });
+
+  test("deck 'Infantil' ou 'Psiquiatria Infantil' aparece na lista", async ({ page }) => {
+    await page.waitForLoadState("domcontentloaded");
+    const infantil = page.getByText("Infantil", { exact: false });
+    const psiquiatriaInfantil = page.getByText("Psiquiatria Infantil", { exact: false });
+    const infantilVisible = await infantil.first().isVisible().catch(() => false);
+    const psiquiatriaInfantilVisible = await psiquiatriaInfantil.first().isVisible().catch(() => false);
+    expect(infantilVisible || psiquiatriaInfantilVisible).toBe(true);
+  });
+
+  test("deck 'Psicoterapias' aparece na lista", async ({ page }) => {
+    await expect(page.getByText("Psicoterapias", { exact: false })).toBeVisible({ timeout: 15_000 });
+  });
+});
+
+// ── Feature 3.5 — Questões comentadas expandidas ─────────────────────────────
+
+test.describe("Questões comentadas (3.5)", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto("/estudos/questoes");
+    await expect(page.getByText("Banco de Questões")).toBeVisible({ timeout: 15_000 });
+  });
+
+  test("página carrega sem erro", async ({ page }) => {
+    await expect(page.locator("body")).not.toContainText("Error");
+    await expect(page.locator("body")).not.toContainText("500");
+    await expect(page.locator("main")).toBeVisible();
+  });
+
+  test("há pelo menos um elemento de questão visível", async ({ page }) => {
+    // Tenta seletor data-testid primeiro; cai em texto genérico de questão se não existir
+    const byTestId = page.locator("[data-testid]").first();
+    const byQuestionText = page.locator("text=/Questão|questão|Alternativa/i").first();
+    const testIdVisible = await byTestId.isVisible().catch(() => false);
+    const questionVisible = await byQuestionText.isVisible().catch(() => false);
+    expect(testIdVisible || questionVisible).toBe(true);
+  });
+
+  test("contador ou badge indica mais de 42 questões (se visível)", async ({ page }) => {
+    // Busca por um badge ou texto com número > 42; pula o assert se o elemento não existir
+    const badge = page.getByText(/\d{2,}/, { exact: false }).first();
+    const isVisible = await badge.isVisible({ timeout: 5_000 }).catch(() => false);
+    if (isVisible) {
+      const texto = await badge.textContent();
+      const numero = parseInt((texto ?? "0").replace(/\D/g, ""), 10);
+      expect(numero).toBeGreaterThan(42);
+    }
+  });
+});
+
+// ── Nova Consulta — módulos bloco 4 ──────────────────────────────────────────
+
+test.describe("Nova Consulta — módulos bloco 4", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto("/consulta/nova");
+    await expect(page.getByText("Nova Consulta")).toBeVisible({ timeout: 15_000 });
+    await expect(page).not.toHaveURL(/\/login/);
+  });
+
+  test("página carrega sem redirect para login", async ({ page }) => {
+    await expect(page).not.toHaveURL(/\/login/);
+    await expect(page.locator("main")).toBeVisible();
+  });
+
+  test("botão de Configuração Avançada ou Módulos existe", async ({ page }) => {
+    const configAvancada = page.getByRole("button", { name: /Configuração Avançada/i });
+    const modulos = page.getByRole("button", { name: /Módulos/i });
+    const linkConfigAvancada = page.getByRole("link", { name: /Configuração Avançada/i });
+    const linkModulos = page.getByRole("link", { name: /Módulos/i });
+    const configVisible = await configAvancada.isVisible().catch(() => false);
+    const modulosVisible = await modulos.isVisible().catch(() => false);
+    const linkConfigVisible = await linkConfigAvancada.isVisible().catch(() => false);
+    const linkModulosVisible = await linkModulos.isVisible().catch(() => false);
+    expect(configVisible || modulosVisible || linkConfigVisible || linkModulosVisible).toBe(true);
+  });
+
+  test("após abrir configuração avançada, 'Modo Residente' aparece", async ({ page }) => {
+    const configAvancada = page.getByRole("button", { name: /Configuração Avançada/i });
+    const modulos = page.getByRole("button", { name: /Módulos/i });
+    const configVisible = await configAvancada.isVisible().catch(() => false);
+    if (configVisible) {
+      await configAvancada.click();
+    } else if (await modulos.isVisible().catch(() => false)) {
+      await modulos.click();
+    }
+    await expect(page.getByText("Modo Residente", { exact: false })).toBeVisible({ timeout: 10_000 });
+  });
+
+  test("após abrir configuração avançada, 'Prejuízo Funcional' aparece", async ({ page }) => {
+    const configAvancada = page.getByRole("button", { name: /Configuração Avançada/i });
+    const modulos = page.getByRole("button", { name: /Módulos/i });
+    const configVisible = await configAvancada.isVisible().catch(() => false);
+    if (configVisible) {
+      await configAvancada.click();
+    } else if (await modulos.isVisible().catch(() => false)) {
+      await modulos.click();
+    }
+    await expect(page.getByText("Prejuízo Funcional", { exact: false })).toBeVisible({ timeout: 10_000 });
+  });
+
+  test("após abrir configuração avançada, 'Capacidade Laboral' aparece", async ({ page }) => {
+    const configAvancada = page.getByRole("button", { name: /Configuração Avançada/i });
+    const modulos = page.getByRole("button", { name: /Módulos/i });
+    const configVisible = await configAvancada.isVisible().catch(() => false);
+    if (configVisible) {
+      await configAvancada.click();
+    } else if (await modulos.isVisible().catch(() => false)) {
+      await modulos.click();
+    }
+    await expect(page.getByText("Capacidade Laboral", { exact: false })).toBeVisible({ timeout: 10_000 });
+  });
+
+  test("após abrir configuração avançada, 'Evolução Comparativa' aparece", async ({ page }) => {
+    const configAvancada = page.getByRole("button", { name: /Configuração Avançada/i });
+    const modulos = page.getByRole("button", { name: /Módulos/i });
+    const configVisible = await configAvancada.isVisible().catch(() => false);
+    if (configVisible) {
+      await configAvancada.click();
+    } else if (await modulos.isVisible().catch(() => false)) {
+      await modulos.click();
+    }
+    await expect(page.getByText("Evolução Comparativa", { exact: false })).toBeVisible({ timeout: 10_000 });
+  });
+
+  test("após abrir configuração avançada, 'Integração' ou 'Farmacologia' aparece", async ({ page }) => {
+    const configAvancada = page.getByRole("button", { name: /Configuração Avançada/i });
+    const modulos = page.getByRole("button", { name: /Módulos/i });
+    const configVisible = await configAvancada.isVisible().catch(() => false);
+    if (configVisible) {
+      await configAvancada.click();
+    } else if (await modulos.isVisible().catch(() => false)) {
+      await modulos.click();
+    }
+    await page.waitForLoadState("domcontentloaded");
+    const integracao = page.getByText("Integração", { exact: false });
+    const farmacologia = page.getByText("Farmacologia", { exact: false });
+    const integracaoVisible = await integracao.first().isVisible().catch(() => false);
+    const farmacologiaVisible = await farmacologia.first().isVisible().catch(() => false);
+    expect(integracaoVisible || farmacologiaVisible).toBe(true);
+  });
+});

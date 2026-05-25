@@ -1,0 +1,43 @@
+{
+  "name": "Axon Med — Psiquiatria para Residentes",
+  "short_name": "Axon Med",
+  "description": "Plataforma clínica e educacional para residentes de psiquiatria",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#0a0a0a",
+  "theme_color": "#4A6CF7",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["medical", "education"],
+  "lang": "pt-BR",
+  "shortcuts": [
+    {
+      "name": "Nova Consulta",
+      "url": "/consulta/nova",
+      "description": "Iniciar nova consulta clínica"
+    },
+    {
+      "name": "Flashcards",
+      "url": "/estudos/flashcards",
+      "description": "Revisar flashcards"
+    },
+    {
+      "name": "Emergência",
+      "url": "/emergencia",
+      "description": "Protocolos de emergência"
+    }
+  ]
+}
