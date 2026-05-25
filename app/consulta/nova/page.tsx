@@ -16,6 +16,7 @@ import { saveCaso } from "@/lib/firebase/casos";
 import { deriveKey, encryptField } from "@/lib/crypto";
 import { toast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
+import Link from "next/link";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -63,6 +64,8 @@ interface ConsultaState {
   adesao: string;
   metasRetorno: string;
   raciocinioCli: string;
+  prejuizoFuncional: Record<string, string>;
+  capacidadeLaboral: Record<string, string>;
 }
 
 const INITIAL: ConsultaState = {
@@ -75,6 +78,7 @@ const INITIAL: ConsultaState = {
   condutaSeguranca: [], condutaRetorno: "", condutaObs: "",
   layout: "estruturado", prontuarioBase: "", prontuarioConfirmado: false,
   advancedModules: {}, sintomosAlvo: [], adesao: "", metasRetorno: "", raciocinioCli: "",
+  prejuizoFuncional: {}, capacidadeLaboral: {},
 };
 
 // ─── Steps ────────────────────────────────────────────────────────────────────
@@ -349,6 +353,80 @@ const PREJUIZO_AREAS = [
 
 const NIVEL_PREJUIZO = ["Sem prejuízo relevante", "Leve", "Moderado", "Grave", "Incapacitante"];
 
+const MODO_RESIDENTE_DICAS: Record<string, { resumo: string; criterios: string; dicas: string[] }> = {
+  "F32": { resumo: "Episódio Depressivo", criterios: "≥5/9 sintomas DSM-5-TR por ≥2 semanas (pelo menos humor deprimido ou anedonia)", dicas: ["Afastar hipotireoidismo (TSH) antes de iniciar antidepressivo", "Item 9 do PHQ-9 (ideação) — avaliar independente do score", "Antidepressivo leva 2-4 semanas para início de ação"] },
+  "F33": { resumo: "Transtorno Depressivo Recorrente", criterios: "≥2 episódios depressivos maiores sem história de mania", dicas: ["Manter antidepressivo por ≥6 meses após remissão (1º episódio)", "≥3 episódios ou recidiva precoce → manutenção longa prazo", "Rastrear bipolaridade: início precoce, história familiar, episódios breves"] },
+  "F31": { resumo: "Transtorno Afetivo Bipolar", criterios: "TB I: ≥1 episódio maníaco completo. TB II: hipomania + depressão (sem mania)", dicas: ["Antidepressivo em monoterapia → risco de virada maníaca", "1ª linha depressão bipolar: quetiapina, lamotrigina, lurasidona", "Monitorar litemia (0,6-1,2 mEq/L) e função renal/TSH"] },
+  "F20": { resumo: "Esquizofrenia", criterios: "≥2 sintomas critério A por ≥1 mês, disfunção social, duração total ≥6 meses", dicas: ["2 falhas a antipsicóticos em dose adequada → indicação de clozapina", "Monitorar síndrome metabólica (peso, glicemia, lipídeos)", "LAIs melhoram adesão e reduzem recaídas em 50%"] },
+  "F41": { resumo: "Transtorno de Ansiedade", criterios: "TAG: preocupação excessiva ≥6 meses + 3/6 sintomas físicos", dicas: ["1ª linha: ISRS/IRSN + TCC (eficácia equivalente)", "Evitar BZDs como tratamento crônico (dependência, prejuízo cognitivo)", "Prazo de resposta ao ISRS: 4-8 semanas para ansiedade"] },
+  "F40": { resumo: "Transtorno Fóbico", criterios: "Fobia Social: medo de avaliação social ≥6 meses com evitação", dicas: ["1ª linha: TCC com Exposição + ISRS (sertralina, escitalopram)", "Fobia de desempenho isolada: propranolol pode auxiliar", "BZD pré-performance: risco de dependência e evitação mantida"] },
+  "F42": { resumo: "TOC", criterios: "Obsessões/compulsões >1h/dia ou com prejuízo/sofrimento. Especificar insight", dicas: ["1ª linha: ISRS em dose ALTA + TCC com EPR (Exposição e Prevenção de Resposta)", "ISRSs para TOC exigem doses maiores que para depressão", "Augmentação com antipsicótico atípico se refratário"] },
+  "F43": { resumo: "Reações a Estresse", criterios: "TEPT: sintomas TEARS por >1 mês após trauma. Estresse Agudo: 3 dias-1 mês", dicas: ["1ª linha TEPT: Sertralina/Paroxetina + TPC ou Exposição Prolongada", "Evitar BZD no TEPT (prejudica extinção do condicionamento de medo)", "EMDR tem eficácia equivalente às psicoterapias baseadas em exposição"] },
+  "F10": { resumo: "Transtorno por Uso de Álcool", criterios: "≥2/11 critérios DSM-5-TR em 12 meses. DT: 48-72h após última dose", dicas: ["Tiamina 500mg EV ANTES de qualquer glicose (previne Wernicke)", "Naltrexona reduz craving (COMBINE trial); acamprosato: manutenção de abstinência", "DT: BZD titulado por CIWA-Ar + suporte hidroeletrolítico"] },
+  "F60.3": { resumo: "Transtorno de Personalidade Borderline", criterios: "5/9 critérios (PRAISE): instabilidade afetiva, relacional, de identidade, impulsividade, automutilação", dicas: ["DBT é o tratamento de 1ª linha (4 módulos: mindfulness, regulação emocional, tolerância ao mal-estar, habilidades interpessoais)", "Farmacoterapia: trata comorbidades (depressão, psicose), não o TPB em si", "Evitar BZD de longa duração (risco de acting out)"] },
+};
+
+const CAPACIDADE_LABORAL_ATIVIDADES = [
+  "Atividade de escritório / administrativo", "Trabalho manual / operacional",
+  "Trabalho com público / atendimento", "Trabalho em altura / máquinas perigosas",
+  "Trabalho noturno / turnos", "Atividade autônoma", "Atividade intelectual intensa",
+  "Trabalho de supervisão / gestão",
+];
+
+const CAPACIDADE_LABORAL_LIMITACOES = [
+  "Dificuldade de concentração", "Fadiga fácil", "Insônia com prejuízo diurno",
+  "Ansiedade em ambiente de trabalho", "Dificuldade de interação social",
+  "Irritabilidade / instabilidade emocional", "Lentificação psicomotora",
+  "Dependência de supervisão constante", "Risco de descompensação sob pressão",
+  "Uso de psicofármacos sedativos", "Incapacidade de tomar decisões",
+];
+
+const FARMACOS_LINKS: { nome: string; slug: string }[] = [
+  { nome: "sertralina", slug: "sertralina" },
+  { nome: "fluoxetina", slug: "fluoxetina" },
+  { nome: "escitalopram", slug: "escitalopram" },
+  { nome: "citalopram", slug: "citalopram" },
+  { nome: "paroxetina", slug: "paroxetina" },
+  { nome: "fluvoxamina", slug: "fluvoxamina" },
+  { nome: "venlafaxina", slug: "venlafaxina" },
+  { nome: "duloxetina", slug: "duloxetina" },
+  { nome: "desvenlafaxina", slug: "desvenlafaxina" },
+  { nome: "mirtazapina", slug: "mirtazapina" },
+  { nome: "bupropiona", slug: "bupropiona" },
+  { nome: "amitriptilina", slug: "amitriptilina" },
+  { nome: "clomipramina", slug: "clomipramina" },
+  { nome: "nortriptilina", slug: "nortriptilina" },
+  { nome: "lítio", slug: "litio" },
+  { nome: "lítio carbonato", slug: "litio" },
+  { nome: "valproato", slug: "valproato" },
+  { nome: "ácido valpróico", slug: "valproato" },
+  { nome: "carbamazepina", slug: "carbamazepina" },
+  { nome: "lamotrigina", slug: "lamotrigina" },
+  { nome: "quetiapina", slug: "quetiapina" },
+  { nome: "risperidona", slug: "risperidona" },
+  { nome: "olanzapina", slug: "olanzapina" },
+  { nome: "aripiprazol", slug: "aripiprazol" },
+  { nome: "clozapina", slug: "clozapina" },
+  { nome: "haloperidol", slug: "haloperidol" },
+  { nome: "paliperidona", slug: "paliperidona" },
+  { nome: "ziprasidona", slug: "ziprasidona" },
+  { nome: "lurasidona", slug: "lurasidona" },
+  { nome: "asenapina", slug: "asenapina" },
+  { nome: "diazepam", slug: "diazepam" },
+  { nome: "clonazepam", slug: "clonazepam" },
+  { nome: "alprazolam", slug: "alprazolam" },
+  { nome: "lorazepam", slug: "lorazepam" },
+  { nome: "midazolam", slug: "midazolam" },
+  { nome: "zolpidem", slug: "zolpidem" },
+  { nome: "melatonina", slug: "melatonina" },
+  { nome: "naltrexona", slug: "naltrexona" },
+  { nome: "buprenorfina", slug: "buprenorfina" },
+  { nome: "metadona", slug: "metadona" },
+  { nome: "metilfenidato", slug: "metilfenidato" },
+  { nome: "anfetamina", slug: "anfetamina" },
+  { nome: "atomoxetina", slug: "atomoxetina" },
+];
+
 // ─── AdvancedConfigPanel — defined outside page to satisfy rerender-no-inline-components ─
 
 interface AdvancedConfigPanelProps {
@@ -570,6 +648,12 @@ function gerarProntuario(d: ConsultaState): string {
     d.advancedModules["adesao"] && d.adesao ? `Adesão ao tratamento: ${d.adesao}.` : "",
     d.advancedModules["sintomas-alvo"] && d.sintomosAlvo.length ? `Sintomas-alvo para monitoramento: ${d.sintomosAlvo.join(", ")}.` : "",
     d.advancedModules["metas-retorno"] && d.metasRetorno ? `Metas até o retorno: ${d.metasRetorno}.` : "",
+    d.advancedModules["prejuizo-funcional"] && Object.keys(d.prejuizoFuncional).length
+      ? `Prejuízo funcional: ${Object.entries(d.prejuizoFuncional).filter(([, v]) => v).map(([k, v]) => `${k}: ${v}`).join("; ")}.`
+      : "",
+    d.advancedModules["capacidade-laboral"] && d.capacidadeLaboral["conclusao"]
+      ? `Capacidade laboral: ${d.capacidadeLaboral["conclusao"]}${d.capacidadeLaboral["atividade"] ? ` para ${d.capacidadeLaboral["atividade"]}` : ""}${d.capacidadeLaboral["limitacoes"] ? `. Limitações: ${d.capacidadeLaboral["limitacoes"].split("|").join(", ")}` : ""}${d.capacidadeLaboral["prazo"] ? `. Prazo/reavaliação: ${d.capacidadeLaboral["prazo"]}` : ""}.`
+      : "",
     d.condutaObs || "",
   ].filter(Boolean);
 
@@ -1617,6 +1701,38 @@ export default function NovaConsultaPage() {
           <TextInput label="Diagnósticos diferenciais (um por linha ou separados por vírgula)" value={data.diferenciais.join(", ")} onChange={v => set("diferenciais", v ? v.split(",").map(s => s.trim()).filter(Boolean) : [])} placeholder="Ex: TAB, Transtorno esquizoafetivo, Depressão por substância" />
         </Block>
 
+        {data.advancedModules["modo-residente"] && data.diagnosticoPrincipal && (() => {
+          const dica = MODO_RESIDENTE_DICAS[data.diagnosticoPrincipal] ||
+                       MODO_RESIDENTE_DICAS[data.diagnosticoPrincipal.slice(0, 4)] ||
+                       MODO_RESIDENTE_DICAS[data.diagnosticoPrincipal.slice(0, 3)];
+          if (!dica) return null;
+          return (
+            <div className="bg-indigo-500/5 border border-indigo-500/20 rounded-2xl p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <Brain size={13} className="text-indigo-600 shrink-0" />
+                <p className="text-xs font-bold text-indigo-700 dark:text-indigo-400">Modo Residente — {dica.resumo}</p>
+              </div>
+              <div className="space-y-2 text-xs">
+                <div>
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-0.5">Critérios-chave</p>
+                  <p className="text-foreground">{dica.criterios}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-0.5">Dicas clínicas</p>
+                  <ul className="space-y-1">
+                    {dica.dicas.map((d, i) => (
+                      <li key={i} className="flex gap-2 text-foreground">
+                        <span className="text-indigo-500 shrink-0">•</span>
+                        <span>{d}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
         {data.advancedModules["raciocinio-clinico"] && (
           <Block title="Raciocínio Clínico Documentado">
             <TextInput
@@ -1638,6 +1754,33 @@ export default function NovaConsultaPage() {
         <Block title="Farmacoterapia">
           <TextInput label="Prescrição / ajuste medicamentoso" value={data.condutaFarma} onChange={v => set("condutaFarma", v)} placeholder="Ex: Iniciar sertralina 50mg 1x/dia pela manhã. Quetiapina 25mg à noite para sono." rows={3} />
         </Block>
+
+        {data.advancedModules["integracao-farmacologia"] && data.condutaFarma && (() => {
+          const texto = data.condutaFarma.toLowerCase();
+          const encontrados = FARMACOS_LINKS.filter(f => texto.includes(f.nome));
+          const unicos = encontrados.filter((f, i, a) => a.findIndex(x => x.slug === f.slug) === i);
+          if (unicos.length === 0) return null;
+          return (
+            <div className="bg-blue-500/5 border border-blue-500/20 rounded-2xl px-4 py-3 space-y-2">
+              <div className="flex items-center gap-2">
+                <BookOpen size={13} className="text-blue-600 shrink-0" />
+                <p className="text-[11px] font-bold text-blue-700 dark:text-blue-400">Integração Farmacológica — links da Biblioteca</p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {unicos.map(f => (
+                  <Link
+                    key={f.slug}
+                    href={`/psicofarmacologia/biblioteca/moleculas?q=${f.slug}`}
+                    target="_blank"
+                    className="inline-flex items-center gap-1 text-[11px] text-blue-700 dark:text-blue-300 bg-blue-500/10 hover:bg-blue-500/20 px-2.5 py-1 rounded-lg transition-colors capitalize"
+                  >
+                    {f.nome} →
+                  </Link>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
 
         <Block title="Psicoterapia">
           <FieldGroup label="Modalidade indicada" multi>
@@ -1707,6 +1850,101 @@ export default function NovaConsultaPage() {
             />
           </Block>
         )}
+
+        {data.advancedModules["prejuizo-funcional"] && (
+          <Block title="Prejuízo Funcional Detalhado">
+            <p className="text-[11px] text-muted-foreground">Avalie o grau de prejuízo em cada área de funcionamento:</p>
+            <div className="space-y-3">
+              {PREJUIZO_AREAS.map(area => (
+                <div key={area} className="space-y-1">
+                  <label className="text-[11px] font-semibold text-foreground">{area}</label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {NIVEL_PREJUIZO.map(nivel => (
+                      <Chip
+                        key={nivel}
+                        label={nivel}
+                        active={data.prejuizoFuncional[area] === nivel}
+                        onClick={() => set("prejuizoFuncional", {
+                          ...data.prejuizoFuncional,
+                          [area]: data.prejuizoFuncional[area] === nivel ? "" : nivel,
+                        })}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Block>
+        )}
+
+        {data.advancedModules["capacidade-laboral"] && (
+          <Block title="Módulo de Capacidade Laboral (INSS / Perícia)">
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Atividade profissional atual</label>
+              <input
+                type="text"
+                className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+                value={data.capacidadeLaboral["atividade"] || ""}
+                onChange={e => set("capacidadeLaboral", { ...data.capacidadeLaboral, atividade: e.target.value })}
+                placeholder="Ex: Auxiliar de enfermagem, 40h/sem"
+              />
+            </div>
+            <FieldGroup label="Exigências do cargo que se aplicam" multi>
+              {CAPACIDADE_LABORAL_ATIVIDADES.map(a => (
+                <Chip
+                  key={a}
+                  label={a}
+                  active={(data.capacidadeLaboral["exigencias"] || "").includes(a)}
+                  onClick={() => {
+                    const atual = (data.capacidadeLaboral["exigencias"] || "").split("|").filter(Boolean);
+                    const novo = atual.includes(a) ? atual.filter(x => x !== a) : [...atual, a];
+                    set("capacidadeLaboral", { ...data.capacidadeLaboral, exigencias: novo.join("|") });
+                  }}
+                />
+              ))}
+            </FieldGroup>
+            <FieldGroup label="Limitações identificadas" multi>
+              {CAPACIDADE_LABORAL_LIMITACOES.map(l => (
+                <Chip
+                  key={l}
+                  label={l}
+                  active={(data.capacidadeLaboral["limitacoes"] || "").includes(l)}
+                  onClick={() => {
+                    const atual = (data.capacidadeLaboral["limitacoes"] || "").split("|").filter(Boolean);
+                    const novo = atual.includes(l) ? atual.filter(x => x !== l) : [...atual, l];
+                    set("capacidadeLaboral", { ...data.capacidadeLaboral, limitacoes: novo.join("|") });
+                  }}
+                />
+              ))}
+            </FieldGroup>
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Conclusão de capacidade laboral</label>
+              <div className="flex flex-wrap gap-2">
+                {["Apto", "Parcialmente apto", "Inapto temporariamente", "Inapto de forma permanente"].map(c => (
+                  <Chip
+                    key={c}
+                    label={c}
+                    active={data.capacidadeLaboral["conclusao"] === c}
+                    onClick={() => set("capacidadeLaboral", {
+                      ...data.capacidadeLaboral,
+                      conclusao: data.capacidadeLaboral["conclusao"] === c ? "" : c,
+                    })}
+                  />
+                ))}
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Prazo sugerido de afastamento / reavaliação</label>
+              <input
+                type="text"
+                className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+                value={data.capacidadeLaboral["prazo"] || ""}
+                onChange={e => set("capacidadeLaboral", { ...data.capacidadeLaboral, prazo: e.target.value })}
+                placeholder="Ex: 60 dias / a critério clínico"
+              />
+            </div>
+          </Block>
+        )}
       </div>
     );
   }
@@ -1729,6 +1967,62 @@ export default function NovaConsultaPage() {
 
     return (
       <div className="space-y-4">
+
+        {/* Evolução Comparativa */}
+        {data.advancedModules["evolucao-comparativa"] && prevState && (
+          <div className="bg-teal-500/5 border border-teal-500/20 rounded-2xl p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <History size={13} className="text-teal-600 shrink-0" />
+              <p className="text-xs font-bold text-teal-700 dark:text-teal-400">Evolução Comparativa — Consulta Anterior</p>
+            </div>
+            <div className="grid grid-cols-1 gap-2 text-xs">
+              {/* Risco */}
+              {(() => {
+                const prevRisco = (prevState.risco["suicida"] || []).join(", ") || "Não registrado";
+                const currRisco = (data.risco["suicida"] || []).join(", ") || "Não avaliado";
+                return (
+                  <div className="grid grid-cols-2 gap-3 bg-background rounded-xl p-3">
+                    <div>
+                      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-0.5">Risco anterior</p>
+                      <p className="text-foreground">{prevRisco}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-0.5">Risco atual</p>
+                      <p className="text-foreground">{currRisco}</p>
+                    </div>
+                  </div>
+                );
+              })()}
+              {/* Diagnóstico */}
+              {(prevState.diagnosticoPrincipal || data.diagnosticoPrincipal) && (
+                <div className="grid grid-cols-2 gap-3 bg-background rounded-xl p-3">
+                  <div>
+                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-0.5">HD anterior</p>
+                    <p className="text-foreground">{prevState.diagnosticoPrincipal || "—"}{prevState.gravidade ? ` (${prevState.gravidade})` : ""}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-0.5">HD atual</p>
+                    <p className="text-foreground">{data.diagnosticoPrincipal || "—"}{data.gravidade ? ` (${data.gravidade})` : ""}</p>
+                  </div>
+                </div>
+              )}
+              {/* Conduta */}
+              {(prevState.condutaFarma || data.condutaFarma) && (
+                <div className="grid grid-cols-2 gap-3 bg-background rounded-xl p-3">
+                  <div>
+                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-0.5">Conduta anterior</p>
+                    <p className="text-foreground line-clamp-3">{prevState.condutaFarma || "—"}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-0.5">Conduta atual</p>
+                    <p className="text-foreground line-clamp-3">{data.condutaFarma || "—"}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+            <p className="text-[10px] text-muted-foreground">Dados da consulta anterior. Use para embasar a evolução no prontuário.</p>
+          </div>
+        )}
 
         {/* Resumo Inteligente */}
         {data.advancedModules["resumo-inteligente"] && (
