@@ -14,11 +14,15 @@ const corConfig: Record<string, { badge: string; icon: string; border: string }>
 };
 
 const areaLabel: Record<string, string> = {
-  agitacao:       "Agitação",
-  delirium:       "Delirium",
-  suicidio:       "Suicídio",
-  serotoninergica:"Serotoninérgica",
-  snm:            "SNM",
+  agitacao:        "Agitação",
+  delirium:        "Delirium",
+  suicidio:        "Suicídio",
+  serotoninergica: "Serotoninérgica",
+  snm:             "SNM",
+  abstinencia_bzd: "Abstinência BZD",
+  litio:           "Intox. Lítio",
+  catatonia:       "Catatonia",
+  conversiva:      "Crise Conversiva",
 };
 
 export default function EmergenciaPage() {

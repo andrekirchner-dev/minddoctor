@@ -18,7 +18,7 @@ export interface Escala {
   id: string;
   sigla: string;
   nome: string;
-  area: "humor" | "ansiedade" | "psicose" | "suicidio" | "alcool" | "cognicao";
+  area: "humor" | "ansiedade" | "psicose" | "suicidio" | "alcool" | "cognicao" | "mania" | "trauma";
   descricao: string;
   instrucoes: string;
   tempo_min: number;
@@ -244,4 +244,194 @@ export const CSSRS: Escala = {
   ],
 };
 
-export const escalas: Escala[] = [PHQ9, GAD7, HAMD, BPRS, AUDIT, CSSRS];
+// ─── MADRS ───────────────────────────────────────────────────────────────────
+const opcoesMadrs = (labels: [string, string, string, string]) => [
+  { valor: 0, label: labels[0] },
+  { valor: 2, label: labels[1] },
+  { valor: 4, label: labels[2] },
+  { valor: 6, label: labels[3] },
+];
+
+export const MADRS: Escala = {
+  id: "madrs",
+  sigla: "MADRS",
+  nome: "Montgomery-Åsberg Depression Rating Scale",
+  area: "humor",
+  descricao: "Escala heteroaplicada para avaliação da gravidade da depressão. Especialmente sensível a mudanças com o tratamento.",
+  instrucoes: "Avaliação clínica da ÚLTIMA SEMANA pelo aplicador. Cada item é pontuado de 0 a 6. Selecione o valor que melhor descreve o paciente.",
+  tempo_min: 15,
+  plano: "free",
+  referencia: "Montgomery SA, Åsberg M. Br J Psychiatry. 1979;134:382-389.",
+  nota_clinica: "Escala heteroaplicada. Score total 0–60. Pontuação ≥20 indica depressão moderada. Amplamente usada para monitorar resposta terapêutica em ensaios clínicos.",
+  itens: [
+    { id: 1, pergunta: "Tristeza aparente — tristeza observada no comportamento, expressão e postura", opcoes: opcoesMadrs(["Nenhuma tristeza", "Parece abatido, mas facilmente se anima", "Parece triste e infeliz durante a maior parte do tempo", "Parece miserável todo o tempo"]) },
+    { id: 2, pergunta: "Tristeza relatada — sentimentos de tristeza, depressão e desamparo relatados pelo paciente", opcoes: opcoesMadrs(["Tristeza ocasional compatível com as circunstâncias", "Tristeza ou humor depressivo presentes mas transitórios", "Sentimentos de tristeza ou depressão predominantes", "Sentimentos de tristeza ou miséria contínuos e irresistíveis"]) },
+    { id: 3, pergunta: "Tensão interior — sentimentos de mal-estar, inquietação, ansiedade ou angústia", opcoes: opcoesMadrs(["Serenidade interior", "Tensão ou mal-estar vagos e ocasionais", "Sentimentos de tensão ou miséria contínuos", "Terror ou angústia constante e insuportável"]) },
+    { id: 4, pergunta: "Sono reduzido — duração ou profundidade do sono reduzidas em relação ao padrão habitual", opcoes: opcoesMadrs(["Sono habitual", "Dificuldade leve para adormecer ou sono levemente reduzido", "Sono reduzido ou interrompido por pelo menos 2 horas", "Menos de 2–3 horas de sono"]) },
+    { id: 5, pergunta: "Apetite reduzido — sensação de perda do apetite comparado ao habitual", opcoes: opcoesMadrs(["Apetite normal ou aumentado", "Apetite levemente reduzido", "Sem apetite — os alimentos parecem insípidos", "Necessidade de ser persuadido a comer"]) },
+    { id: 6, pergunta: "Dificuldade de concentração — dificuldade em reunir pensamentos chegando à incapacidade de ler", opcoes: opcoesMadrs(["Sem dificuldade de concentração", "Dificuldades ocasionais em reunir pensamentos", "Dificuldade para concentrar-se e manter atenção — reduz capacidade de leitura", "Incapaz de ler ou conversar sem grande dificuldade"]) },
+    { id: 7, pergunta: "Lassidão — dificuldade em iniciar atividades; lentidão para iniciar e manter atividades de rotina", opcoes: opcoesMadrs(["Sem dificuldade para iniciar tarefas", "Dificuldade para iniciar atividades", "Dificuldade para iniciar atividades simples de rotina", "Incapaz de fazer qualquer coisa sem ajuda"]) },
+    { id: 8, pergunta: "Incapacidade de sentir — experiência subjetiva de emoções reduzidas; falta de envolvimento emocional", opcoes: opcoesMadrs(["Interesse normal pelo ambiente e pelas pessoas", "Habilidade reduzida de se envolver com o ambiente", "Perda de interesse pelo ambiente e pelas pessoas", "Experiência de estar sem sentimento e de sofrimento doloroso"]) },
+    { id: 9, pergunta: "Pensamentos pessimistas — pensamentos de culpa, inferioridade, autoacusação, pecado e ruína", opcoes: opcoesMadrs(["Sem pensamentos pessimistas", "Ideias flutuantes de fracasso, autorrepreensão ou autodepreciação", "Autoacusação persistente ou ideias de culpa/pecado", "Delírios de ruína, remorso ou pecado"]) },
+    { id: 10, pergunta: "Pensamentos suicidas — sentimento de que a vida não vale a pena, desejo de estar morto, ideação suicida", opcoes: opcoesMadrs(["Aprecia a vida ou a toma como ela é", "Cansado da vida — pensamentos suicidas passageiros", "Provavelmente melhor estar morto; ideação suicida frequente", "Planos explícitos de suicídio quando há oportunidade"]) },
+  ],
+  faixas: [
+    { min: 0,  max: 6,  label: "Remissão",  cor: "verde",    descricao: "Sem depressão significativa.", conduta: "Manutenção. Monitorar." },
+    { min: 7,  max: 19, label: "Leve",      cor: "amarelo",  descricao: "Depressão leve.", conduta: "Psicoterapia. Reavaliar em 2–4 semanas." },
+    { min: 20, max: 34, label: "Moderado",  cor: "laranja",  descricao: "Depressão moderada.", conduta: "Psicofarmacologia e/ou psicoterapia ativa." },
+    { min: 35, max: 60, label: "Grave",     cor: "vermelho", descricao: "Depressão grave.", conduta: "Tratamento imediato. Avaliar internação e risco de suicídio." },
+  ],
+};
+
+// ─── YMRS ────────────────────────────────────────────────────────────────────
+export const YMRS: Escala = {
+  id: "ymrs",
+  sigla: "YMRS",
+  nome: "Young Mania Rating Scale",
+  area: "mania",
+  descricao: "Escala heteroaplicada para avaliação da gravidade de episódio maníaco. Padrão em ensaios com estabilizadores de humor.",
+  instrucoes: "Avaliação clínica pelo aplicador. Itens 1–7 pontuados de 0 a 4; itens 8–11 pontuados de 0 a 8 (em passos de 2). Basear-se na ÚLTIMA SEMANA.",
+  tempo_min: 15,
+  plano: "free",
+  referencia: "Young RC et al. Br J Psychiatry. 1978;133:429-435.",
+  nota_clinica: "Escala heteroaplicada. Score total 0–60. Itens 8, 9, 10 e 11 têm peso duplo (0–8). Pontuação ≥20 = mania moderada; ≥26 = mania grave.",
+  itens: [
+    { id: 1,  pergunta: "Humor elevado", opcoes: [{ valor: 0, label: "Ausente" },{ valor: 1, label: "Levemente ou possivelmente aumentado ao perguntar" },{ valor: 2, label: "Humor elevado subjetivo; otimista, confiante; alegre; apropriado ao conteúdo" },{ valor: 3, label: "Humor elevado; inadequado ao conteúdo; jocoso" },{ valor: 4, label: "Eufórico; risadas inadequadas; cantando" }] },
+    { id: 2,  pergunta: "Atividade motora aumentada — energia", opcoes: [{ valor: 0, label: "Ausente" },{ valor: 1, label: "Subjetivamente aumentada" },{ valor: 2, label: "Animado, gesticula mais" },{ valor: 3, label: "Energia excessiva; hiperativo às vezes; inquieto (pode ser acalmado)" },{ valor: 4, label: "Agitação ou hiperatividade motora; não consegue ficar parado" }] },
+    { id: 3,  pergunta: "Interesse sexual", opcoes: [{ valor: 0, label: "Normal; sem aumento" },{ valor: 1, label: "Levemente aumentado ou ao perguntar" },{ valor: 2, label: "Aumento subjetivo ao perguntar" },{ valor: 3, label: "Espontaneamente verbalizado; conteúdo aumentado na entrevista; preocupado com aspectos sexuais" },{ valor: 4, label: "Comportamento aberto; inapropriado" }] },
+    { id: 4,  pergunta: "Sono — horas por noite (redução em relação ao habitual)", opcoes: [{ valor: 0, label: "Sem redução" },{ valor: 1, label: "Redução em menos de 1 hora" },{ valor: 2, label: "Redução de 1–2 horas" },{ valor: 3, label: "Redução de mais de 2 horas" },{ valor: 4, label: "Nega necessidade de sono" }] },
+    { id: 5,  pergunta: "Irritabilidade", opcoes: [{ valor: 0, label: "Ausente" },{ valor: 1, label: "Subjetivamente aumentada" },{ valor: 2, label: "Irritável durante a entrevista; episódios recentes de raiva" },{ valor: 3, label: "Frequentemente irritável durante a entrevista; grosseiro e rude" },{ valor: 4, label: "Hostil, não cooperativo; entrevista impossível" }] },
+    { id: 6,  pergunta: "Discurso (velocidade e quantidade)", opcoes: [{ valor: 0, label: "Sem aumento" },{ valor: 1, label: "Sentimento de tagarelice" },{ valor: 2, label: "Aumentado ao perguntar; ou espontaneamente tagarela" },{ valor: 3, label: "Pressão de fala; difícil de interromper" },{ valor: 4, label: "Ininterrupto; fuga de ideias" }] },
+    { id: 7,  pergunta: "Distúrbio de linguagem-pensamento", opcoes: [{ valor: 0, label: "Ausente" },{ valor: 1, label: "Circunstancial; pensamentos ligeiramente distraídos" },{ valor: 2, label: "Distraído; perde objetivo; muda de assunto com frequência" },{ valor: 3, label: "Fuga de ideias; tangencial; difícil de seguir; rimas, sons" },{ valor: 4, label: "Incoerente; não comunicativo" }] },
+    { id: 8,  pergunta: "Conteúdo do pensamento", opcoes: [{ valor: 0, label: "Normal" },{ valor: 2, label: "Planos questionáveis; novos interesses" },{ valor: 4, label: "Projetos especiais; hipereligioso" },{ valor: 6, label: "Grandioso ou paranoico; ideias de referência" },{ valor: 8, label: "Delírios; alucinações" }] },
+    { id: 9,  pergunta: "Comportamento disruptivo-agressivo", opcoes: [{ valor: 0, label: "Ausente; cooperativo" },{ valor: 2, label: "Sarcástico; barulhento; desconfiado; reclama" },{ valor: 4, label: "Exige; ameaça; entrevista difícil" },{ valor: 6, label: "Ameaça; grita; entrevista difícil" },{ valor: 8, label: "Agressivo; destrutivo; entrevista impossível" }] },
+    { id: 10, pergunta: "Aparência", opcoes: [{ valor: 0, label: "Bem arrumado e vestido adequadamente" },{ valor: 2, label: "Levemente descuidado" },{ valor: 4, label: "Mal arrumado; moderadamente desordenado; maquiagem excessiva" },{ valor: 6, label: "Desordenado; parcialmente vestido; maquiagem exagerada" },{ valor: 8, label: "Completamente descuidado; adornos bizarros" }] },
+    { id: 11, pergunta: "Insight", opcoes: [{ valor: 0, label: "Presente; admite a doença; concorda com tratamento" },{ valor: 2, label: "Admite possível mudança de humor, mas nega doença" },{ valor: 4, label: "Admite mudança de comportamento, mas nega doença" },{ valor: 6, label: "Admite possível mudança de humor, mas nega doença" },{ valor: 8, label: "Nega qualquer mudança de humor" }] },
+  ],
+  faixas: [
+    { min: 0,  max: 12, label: "Remissão",          cor: "verde",    descricao: "Sem mania significativa.", conduta: "Manutenção. Monitorar estabilidade do humor." },
+    { min: 13, max: 19, label: "Hipomania / Leve",  cor: "amarelo",  descricao: "Hipomania ou mania leve.", conduta: "Revisar estabilizador de humor. Monitorar de perto." },
+    { min: 20, max: 25, label: "Moderado",          cor: "laranja",  descricao: "Mania moderada.", conduta: "Ajuste farmacológico. Considerar antipsicótico atípico." },
+    { min: 26, max: 60, label: "Grave",             cor: "vermelho", descricao: "Mania grave.", conduta: "Tratamento intensivo. Avaliar internação." },
+  ],
+};
+
+// ─── PANSS ───────────────────────────────────────────────────────────────────
+const opcoesPanss = [
+  { valor: 1, label: "1 — Ausente" },
+  { valor: 2, label: "2 — Mínimo" },
+  { valor: 3, label: "3 — Leve" },
+  { valor: 4, label: "4 — Moderado" },
+  { valor: 5, label: "5 — Moderadamente grave" },
+  { valor: 6, label: "6 — Grave" },
+  { valor: 7, label: "7 — Extremo" },
+];
+
+export const PANSS: Escala = {
+  id: "panss",
+  sigla: "PANSS",
+  nome: "Positive and Negative Syndrome Scale",
+  area: "psicose",
+  descricao: "Avaliação heteroaplicada de sintomas positivos, negativos e psicopatologia geral em esquizofrenia e psicoses.",
+  instrucoes: "Avalie cada item com base na entrevista clínica e informações de familiares/equipe da ÚLTIMA SEMANA. Escala de 1 (ausente) a 7 (extremo).",
+  tempo_min: 30,
+  plano: "pro",
+  referencia: "Kay SR et al. Schizophr Bull. 1987;13(2):261-276.",
+  nota_clinica: "Escala heteroaplicada. Score mínimo: 30. Score médio em esquizofrenia: 75–95. Subescalas: Positiva (P1–P7, 7–49), Negativa (N1–N7, 7–49), Geral (G1–G16, 16–112).",
+  itens: [
+    // Subescala Positiva
+    { id: 1,  pergunta: "P1 — Delírios — crenças falsas, inabaláveis e sem base na realidade", opcoes: opcoesPanss },
+    { id: 2,  pergunta: "P2 — Desorganização conceitual — pensamento desorganizado, tangencial ou incoerente", opcoes: opcoesPanss },
+    { id: 3,  pergunta: "P3 — Alucinações — percepções sem estímulo externo (auditivas, visuais, outras)", opcoes: opcoesPanss },
+    { id: 4,  pergunta: "P4 — Excitação — hiperatividade, impulsividade, agitação ou irritabilidade", opcoes: opcoesPanss },
+    { id: 5,  pergunta: "P5 — Grandiosidade — autoavaliação exagerada ou convicções de poderes especiais", opcoes: opcoesPanss },
+    { id: 6,  pergunta: "P6 — Suspeita/Perseguição — ideias de ser prejudicado, perseguido ou observado", opcoes: opcoesPanss },
+    { id: 7,  pergunta: "P7 — Hostilidade — animosidade verbal ou física em relação a outros", opcoes: opcoesPanss },
+    // Subescala Negativa
+    { id: 8,  pergunta: "N1 — Embotamento afetivo — redução da expressão emocional e da ressonância afetiva", opcoes: opcoesPanss },
+    { id: 9,  pergunta: "N2 — Retraimento emocional — falta de interesse em interações sociais e no ambiente", opcoes: opcoesPanss },
+    { id: 10, pergunta: "N3 — Contato pobre — relacionamento interpessoal distante e superficial", opcoes: opcoesPanss },
+    { id: 11, pergunta: "N4 — Retraimento social passivo/apático — redução da iniciativa social e afastamento", opcoes: opcoesPanss },
+    { id: 12, pergunta: "N5 — Dificuldade no pensamento abstrato — prejuízo na formação de conceitos abstratos", opcoes: opcoesPanss },
+    { id: 13, pergunta: "N6 — Falta de espontaneidade e fluidez na conversação — redução da iniciativa verbal", opcoes: opcoesPanss },
+    { id: 14, pergunta: "N7 — Pensamento estereotipado — pensamento rígido, repetitivo e inflexível", opcoes: opcoesPanss },
+    // Psicopatologia Geral
+    { id: 15, pergunta: "G1 — Preocupações somáticas — queixas físicas sem base orgânica estabelecida", opcoes: opcoesPanss },
+    { id: 16, pergunta: "G2 — Ansiedade — sentimentos de apreensão, preocupação ou medo excessivos", opcoes: opcoesPanss },
+    { id: 17, pergunta: "G3 — Sentimentos de culpa — autocensura e remorso por atos passados", opcoes: opcoesPanss },
+    { id: 18, pergunta: "G4 — Tensão — manifestações físicas de tensão e nervosismo", opcoes: opcoesPanss },
+    { id: 19, pergunta: "G5 — Maneirismos e posturas — movimentos ou posturas incomuns e repetitivos", opcoes: opcoesPanss },
+    { id: 20, pergunta: "G6 — Depressão — humor triste, pessimismo, desesperança", opcoes: opcoesPanss },
+    { id: 21, pergunta: "G7 — Retardo motor — lentidão do movimento e da fala", opcoes: opcoesPanss },
+    { id: 22, pergunta: "G8 — Não cooperação — resistência ou recusa em colaborar com entrevistador ou equipe", opcoes: opcoesPanss },
+    { id: 23, pergunta: "G9 — Conteúdo incomum do pensamento — ideias estranhas, bizarras ou atípicas", opcoes: opcoesPanss },
+    { id: 24, pergunta: "G10 — Desorientação — confusão quanto a pessoa, lugar ou tempo", opcoes: opcoesPanss },
+    { id: 25, pergunta: "G11 — Atenção ruim — dificuldade em focar e manter atenção durante a entrevista", opcoes: opcoesPanss },
+    { id: 26, pergunta: "G12 — Falta de julgamento e crítica — capacidade prejudicada de avaliar situações", opcoes: opcoesPanss },
+    { id: 27, pergunta: "G13 — Perturbação da volição — deficiência na iniciativa, motivação e energia", opcoes: opcoesPanss },
+    { id: 28, pergunta: "G14 — Controle de impulsos ruim — dificuldade em inibir impulsos agressivos ou sexuais", opcoes: opcoesPanss },
+    { id: 29, pergunta: "G15 — Preocupação — absorção por pensamentos e sentimentos internos", opcoes: opcoesPanss },
+    { id: 30, pergunta: "G16 — Evitação social ativa — evitação intencional de interações sociais", opcoes: opcoesPanss },
+  ],
+  faixas: [
+    { min: 30, max: 58, label: "Leve",                  cor: "amarelo",  descricao: "Sintomas psicóticos leves.", conduta: "Monitorar. Otimizar antipsicótico." },
+    { min: 59, max: 75, label: "Moderado",              cor: "laranja",  descricao: "Sintomas psicóticos moderados.", conduta: "Revisão farmacológica. Suporte psicossocial." },
+    { min: 76, max: 95, label: "Moderadamente Grave",  cor: "vermelho", descricao: "Sintomas psicóticos moderadamente graves.", conduta: "Ajuste terapêutico urgente. Avaliar internação." },
+    { min: 96, max: 210,label: "Grave",                cor: "vermelho", descricao: "Sintomas psicóticos graves.", conduta: "Internação. Otimização antipsicótica imediata." },
+  ],
+};
+
+// ─── PCL-5 ───────────────────────────────────────────────────────────────────
+const opcoesPcl5 = [
+  { valor: 0, label: "0 — Nada" },
+  { valor: 1, label: "1 — Um pouco" },
+  { valor: 2, label: "2 — Moderadamente" },
+  { valor: 3, label: "3 — Bastante" },
+  { valor: 4, label: "4 — Extremamente" },
+];
+
+export const PCL5: Escala = {
+  id: "pcl5",
+  sigla: "PCL-5",
+  nome: "PTSD Checklist for DSM-5",
+  area: "trauma",
+  descricao: "Autoavaliação de sintomas de Transtorno de Estresse Pós-Traumático (TEPT) conforme critérios do DSM-5.",
+  instrucoes: "Abaixo está uma lista de problemas que às vezes as pessoas têm em resposta a uma experiência muito estressante. Pensando no seu pior evento estressante, o quanto você foi incomodado por cada um dos problemas a seguir no último mês?",
+  tempo_min: 10,
+  plano: "free",
+  referencia: "Weathers FW et al. National Center for PTSD. 2013.",
+  nota_clinica: "Score total 0–80. Ponto de corte ≥31–33 para TEPT provável (sensibilidade e especificidade adequadas). Clusters: B=Reexperienciação (1–5), C=Evitação (6–7), D=Cognições/humor negativo (8–14), E=Hiperexcitabilidade (15–20).",
+  itens: [
+    // Cluster B — Reexperienciação
+    { id: 1,  pergunta: "B1 — Memórias perturbadoras repetidas, involuntárias e intrusivas do evento estressante", opcoes: opcoesPcl5 },
+    { id: 2,  pergunta: "B2 — Sonhos perturbadores repetidos relacionados ao evento estressante", opcoes: opcoesPcl5 },
+    { id: 3,  pergunta: "B3 — Sentir ou agir de repente como se o evento estivesse acontecendo novamente (flashbacks)", opcoes: opcoesPcl5 },
+    { id: 4,  pergunta: "B4 — Sentir-se muito perturbado quando algo lembra o evento estressante", opcoes: opcoesPcl5 },
+    { id: 5,  pergunta: "B5 — Ter reações físicas fortes quando algo lembra o evento (coração acelerado, falta de ar)", opcoes: opcoesPcl5 },
+    // Cluster C — Evitação
+    { id: 6,  pergunta: "C1 — Evitar memórias, pensamentos ou sentimentos relacionados ao evento estressante", opcoes: opcoesPcl5 },
+    { id: 7,  pergunta: "C2 — Evitar lembretes externos do evento (pessoas, lugares, conversas, atividades, objetos, situações)", opcoes: opcoesPcl5 },
+    // Cluster D — Cognições e humor negativos
+    { id: 8,  pergunta: "D1 — Dificuldade em lembrar partes importantes do evento estressante", opcoes: opcoesPcl5 },
+    { id: 9,  pergunta: "D2 — Crenças negativas fortes sobre si mesmo, outras pessoas ou o mundo (ex.: 'Sou uma pessoa ruim')", opcoes: opcoesPcl5 },
+    { id: 10, pergunta: "D3 — Culpar a si mesmo ou outras pessoas pelo evento estressante ou pelas suas consequências", opcoes: opcoesPcl5 },
+    { id: 11, pergunta: "D4 — Sentimentos negativos fortes (medo, horror, raiva, culpa, vergonha)", opcoes: opcoesPcl5 },
+    { id: 12, pergunta: "D5 — Perda de interesse em atividades que antes eram importantes ou agradáveis", opcoes: opcoesPcl5 },
+    { id: 13, pergunta: "D6 — Sentir-se distante ou isolado das outras pessoas", opcoes: opcoesPcl5 },
+    { id: 14, pergunta: "D7 — Dificuldade em sentir emoções positivas (amor, alegria, satisfação)", opcoes: opcoesPcl5 },
+    // Cluster E — Hiperexcitabilidade
+    { id: 15, pergunta: "E1 — Comportamento irritável, explosões de raiva ou agir de forma agressiva", opcoes: opcoesPcl5 },
+    { id: 16, pergunta: "E2 — Assumir riscos excessivos ou fazer coisas que poderiam se machucar", opcoes: opcoesPcl5 },
+    { id: 17, pergunta: "E3 — Estar superalerta, vigilante ou de guarda", opcoes: opcoesPcl5 },
+    { id: 18, pergunta: "E4 — Sentir-se sobressaltado facilmente ou assustar-se com facilidade", opcoes: opcoesPcl5 },
+    { id: 19, pergunta: "E5 — Dificuldade de concentração", opcoes: opcoesPcl5 },
+    { id: 20, pergunta: "E6 — Dificuldade para dormir (adormecer ou permanecer dormindo)", opcoes: opcoesPcl5 },
+  ],
+  faixas: [
+    { min: 0,  max: 30, label: "Abaixo do limiar",   cor: "verde",    descricao: "Sintomas de TEPT abaixo do ponto de corte.", conduta: "Monitorar. Avaliar contexto clínico e funcional." },
+    { min: 31, max: 49, label: "TEPT Provável",       cor: "laranja",  descricao: "Score acima do ponto de corte — TEPT provável.", conduta: "Encaminhamento para avaliação diagnóstica formal. Considerar TCC focada no trauma ou EMDR." },
+    { min: 50, max: 80, label: "TEPT Grave",          cor: "vermelho", descricao: "Sintomas graves de TEPT.", conduta: "Tratamento especializado urgente. Psicoterapia focada no trauma + avaliação farmacológica (ISRS/IRSN)." },
+  ],
+};
+
+export const escalas: Escala[] = [PHQ9, GAD7, HAMD, BPRS, AUDIT, CSSRS, MADRS, YMRS, PANSS, PCL5];
