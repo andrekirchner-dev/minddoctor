@@ -32,6 +32,7 @@ interface ConsultaState {
   hpmaCurso: string[];
   hpmaSintomas: Sels;
   hpmaLivre: string;
+  hpmaView: string;
   antPsi: Sels;
   antClinico: string[];
   antFamiliar: string[];
@@ -56,6 +57,7 @@ interface ConsultaState {
   condutaSeguranca: string[];
   condutaRetorno: string;
   condutaObs: string;
+  condutaBase: string;
   layout: string;
   prontuarioBase: string;
   prontuarioConfirmado: boolean;
@@ -66,19 +68,23 @@ interface ConsultaState {
   raciocinioCli: string;
   prejuizoFuncional: Record<string, string>;
   capacidadeLaboral: Record<string, string>;
+  realce: string;
+  neurodev: Sels;
+  importadoTexto: string;
 }
 
 const INITIAL: ConsultaState = {
   tipo: "", ident: {}, qp: [], qpLivre: "", hpmaInicio: [], hpmaCurso: [],
-  hpmaSintomas: {}, hpmaLivre: "", antPsi: {}, antClinico: [], antFamiliar: [],
+  hpmaSintomas: {}, hpmaLivre: "", hpmaView: "topicos", antPsi: {}, antClinico: [], antFamiliar: [],
   antDetalhes: "", substancias: {}, muc: "", ttoPrevio: "", alergias: "",
   eem: {}, eemLivre: "", risco: {}, nivelRisco: "", diagnosticoPrincipal: "",
   diagnosticoLivre: "", diferenciais: [], gravidade: "", especificadores: [],
   condutaFarma: "", condutaPsico: [], condutaExames: [], condutaEncam: [],
-  condutaSeguranca: [], condutaRetorno: "", condutaObs: "",
+  condutaSeguranca: [], condutaRetorno: "", condutaObs: "", condutaBase: "",
   layout: "estruturado", prontuarioBase: "", prontuarioConfirmado: false,
   advancedModules: {}, sintomosAlvo: [], adesao: "", metasRetorno: "", raciocinioCli: "",
   prejuizoFuncional: {}, capacidadeLaboral: {},
+  realce: "nao", neurodev: {}, importadoTexto: "",
 };
 
 // ─── Steps ────────────────────────────────────────────────────────────────────
@@ -164,6 +170,19 @@ const SUBSTANCIAS = [
   { id: "crack", label: "Crack" }, { id: "anfetaminas", label: "Anfetaminas" },
   { id: "bzd", label: "Benzodiazepínicos (abuso)" }, { id: "opioides", label: "Opioides" },
   { id: "alucinogenos", label: "Alucinógenos" },
+];
+
+const NEURODEV_DOMINIOS = [
+  { id: "marco-temporal", label: "A. Marco temporal / início", opcoes: ["Desde a infância", "Início percebido na adolescência", "Início percebido na vida adulta", "Dificuldades persistentes ao longo do desenvolvimento", "Diagnóstico recente por avaliação neuropsicológica", "Sintomas retrospectivos compatíveis desde a infância"] },
+  { id: "tea-comunicacao", label: "B. TEA — Comunicação e interação social", opcoes: ["Dificuldade qualitativa na interação social", "Contato visual reduzido/evasivo", "Dificuldade de reciprocidade socioemocional", "Dificuldade em iniciar/manter conversas", "Dificuldade de compreender pistas sociais", "Interação social percebida como forçada ou ensaiada", "Esgotamento após interação social", "Dificuldade em manter amizades/relações", "Mascaramento social/camuflagem", "Preferência por isolamento", "Dificuldade de adaptação a contextos sociais"] },
+  { id: "tea-padroes", label: "C. TEA — Padrões restritos/repetitivos", opcoes: ["Comportamentos estereotipados", "Maneirismos", "Rituais", "Rigidez comportamental", "Resistência a mudanças", "Necessidade de rotina/previsibilidade", "Interesses restritos/intensos", "Hiperfoco", "Dificuldade com transições", "Comportamentos repetitivos"] },
+  { id: "tea-sensorial", label: "D. TEA — Sensibilidade sensorial", opcoes: ["Hipersensibilidade auditiva", "Hipersensibilidade visual", "Hipersensibilidade tátil", "Hipersensibilidade olfativa", "Seletividade alimentar", "Sobrecarga sensorial", "Irritabilidade em ambientes ruidosos", "Necessidade de isolamento após estímulos", "Crises associadas a estímulos sensoriais"] },
+  { id: "tdah-atencao", label: "E. TDAH — Atenção e funções executivas", opcoes: ["Desatenção", "Dificuldade de concentração", "Procrastinação", "Desorganização", "Esquecimentos frequentes", "Perda de objetos", "Dificuldade de finalizar tarefas", "Dificuldade de planejamento", "Dificuldade de priorização", "Baixa tolerância a tarefas longas", "Oscilação de desempenho", "Hiperfoco em temas específicos"] },
+  { id: "tdah-hiperatividade", label: "F. TDAH — Hiperatividade/impulsividade", opcoes: ["Inquietação interna", "Hiperatividade motora", "Fala excessiva", "Interrupções frequentes", "Impulsividade", "Decisões precipitadas", "Dificuldade de esperar", "Irritabilidade por frustração", "Agitação mental", "Sensação de mente acelerada"] },
+  { id: "di-funcional", label: "G. Deficiência intelectual / funcionamento adaptativo", opcoes: ["Atraso no desenvolvimento neuropsicomotor", "Atraso de linguagem", "Dificuldades escolares importantes", "Baixa autonomia", "Dificuldade em atividades instrumentais", "Dificuldade no manejo financeiro", "Necessidade de supervisão", "Prejuízo adaptativo persistente", "Necessidade de avaliação neuropsicológica"] },
+  { id: "historia-escolar", label: "H. História escolar e desenvolvimento", opcoes: ["Dificuldade de aprendizagem", "Repetência", "Baixo rendimento escolar", "Bullying", "Isolamento social na infância", "Dificuldade de socialização", "Queixas comportamentais escolares", "Hiperatividade na infância", "Desatenção desde a infância", "Rigidez desde a infância", "Seletividade alimentar na infância"] },
+  { id: "avaliacoes-previas", label: "I. Avaliações prévias", opcoes: ["Avaliação neuropsicológica realizada", "Diagnóstico prévio de TEA", "Diagnóstico prévio de TDAH", "Diagnóstico prévio de deficiência intelectual", "Laudo escolar/neuropsicológico anexado", "Sem avaliação prévia", "Necessita avaliação neuropsicológica complementar"] },
+  { id: "impacto-funcional", label: "J. Impacto funcional atual", opcoes: ["Prejuízo social", "Prejuízo laboral", "Prejuízo acadêmico", "Prejuízo em autonomia", "Prejuízo em relacionamentos", "Esgotamento por demandas sociais", "Crises por sobrecarga sensorial", "Dificuldade de adaptação ocupacional", "Necessidade de suporte/acomodação"] },
 ];
 
 const EEM_DOMINIOS = [
@@ -561,7 +580,12 @@ const LAYOUTS = [
   { id: "enfermaria", label: "Evolução de enfermaria", desc: "Sono / alimentação / comportamento / risco / conduta" },
   { id: "urgencia", label: "Avaliação de urgência", desc: "Foco em apresentação, risco e conduta imediata" },
   { id: "inss", label: "Formato INSS / perícia", desc: "Estrutura previdenciária com prejuízo funcional e capacidade laboral" },
+  { id: "soap", label: "SOAP-R", desc: "S — Subjetivo / O — Objetivo / A — Avaliação / R — Risco / P — Plano" },
 ];
+
+const CONDUTA_BASE_COMPLETO = "Realizada escuta ativa, acolhimento e validação do sofrimento psíquico apresentado. Realizada psicoeducação sobre o quadro clínico, sintomas atuais, fatores de piora e importância da adesão ao tratamento proposto. Orientado quanto à necessidade de seguimento psiquiátrico regular, manutenção das recomendações terapêuticas e observação de sinais de alerta. Orientado sobre possíveis efeitos adversos das medicações prescritas/ajustadas, bem como sobre a importância de não realizar suspensão ou alteração medicamentosa sem orientação médica. Reforçadas medidas de autocuidado, higiene do sono, organização de rotina, redução de fatores estressores quando possível e busca de suporte familiar/social. Orientado procurar pronto-atendimento em caso de piora importante dos sintomas, ideação suicida, comportamento de risco, agitação intensa, sintomas psicóticos, efeitos adversos graves ou qualquer situação de risco.";
+
+const CONDUTA_BASE_SIMPLIFICADO = "Realizada escuta ativa, acolhimento e psicoeducação sobre o quadro clínico e tratamento proposto. Orientado quanto à importância da adesão às medicações e demais recomendações terapêuticas, bem como sobre sinais de alerta e necessidade de procurar pronto-atendimento em caso de piora importante, ideação suicida, comportamento de risco ou efeitos adversos relevantes. Reforçadas medidas de autocuidado, higiene do sono e seguimento psiquiátrico regular.";
 
 // ─── Prontuário Generator ─────────────────────────────────────────────────────
 
@@ -594,8 +618,89 @@ function buildHPMAText(d: ConsultaState): string {
     const sels = d.hpmaSintomas[dom.id] || [];
     if (sels.length) lines.push(`${dom.label}: ${sels.join(", ").toLowerCase()}.`);
   }
+  const neuroDevText = buildNeuroDevText(d);
+  if (neuroDevText) lines.push(neuroDevText);
   if (d.hpmaLivre) lines.push(d.hpmaLivre);
   return lines.join("\n");
+}
+
+function buildNeuroDevText(d: ConsultaState): string {
+  const nd = d.neurodev || {};
+  const anySelected = Object.values(nd).some(v => v.length > 0);
+  if (!anySelected) return "";
+  const parts: string[] = [];
+  const marco = nd["marco-temporal"] || [];
+  if (marco.length) parts.push(`Histórico do desenvolvimento: ${marco.join(", ").toLowerCase()}.`);
+  const teaCom = nd["tea-comunicacao"] || [];
+  if (teaCom.length) parts.push(`Relata dificuldades qualitativas na interação social, incluindo ${teaCom.join(", ").toLowerCase()}.`);
+  const teaPad = nd["tea-padroes"] || [];
+  if (teaPad.length) parts.push(`Refere rigidez comportamental, necessidade de previsibilidade e ${teaPad.join(", ").toLowerCase()}.`);
+  const teaSen = nd["tea-sensorial"] || [];
+  if (teaSen.length) parts.push(`Apresenta sensibilidade sensorial, especialmente ${teaSen.join(", ").toLowerCase()}.`);
+  const tdahAt = nd["tdah-atencao"] || [];
+  if (tdahAt.length) parts.push(`Associam-se alterações atencionais, incluindo ${tdahAt.join(", ").toLowerCase()}.`);
+  const tdahHi = nd["tdah-hiperatividade"] || [];
+  if (tdahHi.length) parts.push(`Com hiperatividade/impulsividade, incluindo ${tdahHi.join(", ").toLowerCase()}.`);
+  const di = nd["di-funcional"] || [];
+  if (di.length) parts.push(`Aspectos de funcionamento adaptativo: ${di.join(", ").toLowerCase()}.`);
+  const escolar = nd["historia-escolar"] || [];
+  if (escolar.length) parts.push(`História escolar: ${escolar.join(", ").toLowerCase()}.`);
+  const aval = nd["avaliacoes-previas"] || [];
+  if (aval.length) parts.push(`Avaliações prévias: ${aval.join(", ").toLowerCase()}.`);
+  const impacto = nd["impacto-funcional"] || [];
+  if (impacto.length) parts.push(`Impacto funcional atual relacionado ao neurodesenvolvimento: ${impacto.join(", ").toLowerCase()}.`);
+  return parts.join(" ");
+}
+
+function buildHPMATextCorrido(d: ConsultaState): string {
+  const parts: string[] = [];
+  const inicio = d.hpmaInicio.join(", ").toLowerCase();
+  const curso = d.hpmaCurso.join(", ").toLowerCase();
+  if (inicio || curso) {
+    parts.push(`Paciente refere quadro de ${inicio || "início não especificado"}, com ${curso || "curso não especificado"}.`);
+  }
+  const afetivos = d.hpmaSintomas["afetivos"] || [];
+  if (afetivos.length) parts.push(`cursando com sintomas afetivos caracterizados por ${afetivos.join(", ").toLowerCase()}.`);
+  const ansiedade = d.hpmaSintomas["ansiedade"] || [];
+  if (ansiedade.length) parts.push(`Associam-se sintomas ansiosos, com ${ansiedade.join(", ").toLowerCase()}.`);
+  const psicose = d.hpmaSintomas["psicose"] || [];
+  if (psicose.length) parts.push(`Evidenciam-se sintomas psicóticos, tais como ${psicose.join(", ").toLowerCase()}.`);
+  const mania = d.hpmaSintomas["mania"] || [];
+  if (mania.length) parts.push(`Com elementos hipomaníacos/maníacos, incluindo ${mania.join(", ").toLowerCase()}.`);
+  const ocd = d.hpmaSintomas["ocd"] || [];
+  if (ocd.length) parts.push(`Relata sintomas obsessivo-compulsivos: ${ocd.join(", ").toLowerCase()}.`);
+  const tdah = d.hpmaSintomas["tdah"] || [];
+  if (tdah.length) parts.push(`Além de alterações atencionais e de funções executivas, incluindo ${tdah.join(", ").toLowerCase()}.`);
+  const sono = d.hpmaSintomas["sono"] || [];
+  if (sono.length) parts.push(`Relata alterações do sono, com ${sono.join(", ").toLowerCase()}.`);
+  const apetite = d.hpmaSintomas["apetite"] || [];
+  if (apetite.length) parts.push(`e alterações do apetite, com ${apetite.join(", ").toLowerCase()}.`);
+  const funcionalidade = d.hpmaSintomas["funcionalidade"] || [];
+  if (funcionalidade.length) parts.push(`Do ponto de vista funcional, relata ${funcionalidade.join(", ").toLowerCase()}.`);
+  const neuroDevText = buildNeuroDevText(d);
+  if (neuroDevText) parts.push(neuroDevText);
+  if (d.hpmaLivre) parts.push(d.hpmaLivre);
+  return parts.join(" ");
+}
+
+function applyRealce(text: string, mode: string): string {
+  if (mode === "negrito") return `**${text}**`;
+  if (mode === "caps") return text.toUpperCase();
+  return text;
+}
+
+function buildEEMTextRealce(eem: Sels, mode: string): string {
+  const lines: string[] = [];
+  for (const d of EEM_DOMINIOS) {
+    const sels = eem[d.id] || [];
+    if (sels.includes("_normal")) {
+      lines.push(d.normal);
+    } else if (sels.length > 0) {
+      const wrappedOpts = sels.map(o => applyRealce(o, mode));
+      lines.push(`${d.label}: ${wrappedOpts.join(", ")}.`);
+    }
+  }
+  return lines.join(" ");
 }
 
 function gerarProntuario(d: ConsultaState): string {
@@ -618,8 +723,8 @@ function gerarProntuario(d: ConsultaState): string {
   const identText = `Paciente${d.ident.nome ? ` ${d.ident.nome}` : ""}${identParts ? `, ${identParts}` : ""}. Comparece à avaliação ${d.ident.acompanhante === "sim" ? "acompanhado/a de familiar" : "desacompanhado/a"}. Informações obtidas por meio de ${d.ident.fonteInfo || "relato próprio"}${d.ident.confiabilidade ? `, confiabilidade ${d.ident.confiabilidade}` : ""}.`;
 
   const qpText = [d.qp.join(", "), d.qpLivre].filter(Boolean).join(" — ");
-  const hpmaText = buildHPMAText(d);
-  const eemText = buildEEMText(d.eem) + (d.eemLivre ? ` ${d.eemLivre}` : "");
+  const hpmaText = d.hpmaView === "corrido" ? buildHPMATextCorrido(d) : buildHPMAText(d);
+  const eemText = buildEEMTextRealce(d.eem, d.realce) + (d.eemLivre ? ` ${d.eemLivre}` : "");
 
   const riscoSuicida = d.risco["suicida"] || [];
   const riscoHetero = d.risco["hetero"] || [];
@@ -639,6 +744,7 @@ function gerarProntuario(d: ConsultaState): string {
   ].filter(Boolean).join(" ");
 
   const condutaLines = [
+    d.condutaBase === "completo" ? CONDUTA_BASE_COMPLETO : d.condutaBase === "simplificado" ? CONDUTA_BASE_SIMPLIFICADO : "",
     d.condutaFarma ? `Farmacoterapia: ${d.condutaFarma}.` : "",
     d.condutaPsico.length ? `Psicoterapia: ${d.condutaPsico.join(", ")}.` : "",
     d.condutaExames.length ? `Exames: ${d.condutaExames.join(", ")}.` : "",
@@ -765,6 +871,17 @@ function gerarProntuario(d: ConsultaState): string {
     if (funcPrejuizo.length) p.push(`Prejuízo funcional: ${funcPrejuizo.join(", ")}.`);
     if (condutaLines.length) p.push(`Tratamento instituído:\n${condutaLines.join("\n")}`);
     p.push(`Prognóstico e recomendações: No momento, pelo quadro clínico descrito e pelo nível de prejuízo funcional, sugere-se manutenção de acompanhamento psiquiátrico regular e reavaliação de capacidade laboral em _____ dias.`);
+    return p.join("\n\n");
+  }
+
+  // ── Layout: SOAP-R ────────────────────────────────────────────────────────────
+  if (layout === "soap") {
+    const p: string[] = [];
+    p.push(`S — SUBJETIVO\nQP: ${qpText || "Não registrado."}\n${hpmaText || ""}`);
+    p.push(`O — OBJETIVO\n${eemText || "EEM não preenchido."}`);
+    p.push(`A — AVALIAÇÃO\n${hdText || "Hipótese diagnóstica não registrada."}`);
+    p.push(`R — RISCO\n${riscoText || "Sem avaliação de risco formal registrada."}`);
+    if (condutaLines.length) p.push(`P — PLANO\n${condutaLines.join("\n")}`);
     return p.join("\n\n");
   }
 
@@ -1226,6 +1343,9 @@ export default function NovaConsultaPage() {
   const [prevState, setPrevState] = useState<ConsultaState | null>(null);
   const [savingCaso, setSavingCaso] = useState(false);
   const [casoSalvo, setCasoSalvo] = useState(false);
+  const [showImport, setShowImport] = useState(false);
+  const [showPreviewRealce, setShowPreviewRealce] = useState(false);
+  const [importedPanelOpen, setImportedPanelOpen] = useState(false);
 
   const set = useCallback(<K extends keyof ConsultaState>(key: K, val: ConsultaState[K]) => {
     setData(prev => ({ ...prev, [key]: val }));
@@ -1238,7 +1358,7 @@ export default function NovaConsultaPage() {
     });
   }, []);
 
-  const toggleSels = useCallback((field: "hpmaSintomas" | "antPsi" | "substancias" | "eem" | "risco", sub: string, val: string, multi = true) => {
+  const toggleSels = useCallback((field: "hpmaSintomas" | "antPsi" | "substancias" | "eem" | "risco" | "neurodev", sub: string, val: string, multi = true) => {
     setData(prev => {
       const sels = { ...prev[field] };
       const cur = sels[sub] || [];
@@ -1401,23 +1521,80 @@ export default function NovaConsultaPage() {
 
   function renderTipo() {
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        {TIPOS.map(t => (
-          <button
-            key={t.value}
-            type="button"
-            onClick={() => set("tipo", t.value)}
-            className={cn(
-              "text-left p-4 rounded-2xl border transition-all",
-              data.tipo === t.value
-                ? "border-primary bg-primary/5 ring-1 ring-primary/30"
-                : "border-border bg-card hover:border-primary/30"
-            )}
-          >
-            <p className="font-semibold text-sm text-foreground">{t.label}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">{t.desc}</p>
-          </button>
-        ))}
+      <div className="space-y-4">
+        {data.importadoTexto && (
+          <div className="bg-blue-500/5 border border-blue-500/20 rounded-2xl px-4 py-3 flex gap-3 items-start">
+            <FileText size={13} className="text-blue-600 shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="text-xs font-semibold text-blue-700 dark:text-blue-400">
+                Atendimento anterior importado — disponível como referência no step 7
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => set("importadoTexto", "")}
+              className="text-[11px] text-blue-600 hover:text-blue-800 font-medium shrink-0"
+            >
+              Remover
+            </button>
+          </div>
+        )}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {TIPOS.map(t => (
+            <button
+              key={t.value}
+              type="button"
+              onClick={() => set("tipo", t.value)}
+              className={cn(
+                "text-left p-4 rounded-2xl border transition-all",
+                data.tipo === t.value
+                  ? "border-primary bg-primary/5 ring-1 ring-primary/30"
+                  : "border-border bg-card hover:border-primary/30"
+              )}
+            >
+              <p className="font-semibold text-sm text-foreground">{t.label}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">{t.desc}</p>
+            </button>
+          ))}
+        </div>
+        <button
+          type="button"
+          onClick={() => setShowImport(true)}
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-border text-sm font-medium text-muted-foreground hover:text-foreground hover:border-primary/30 transition-colors"
+        >
+          <ClipboardCheck size={14} />
+          Importar atendimento anterior
+        </button>
+        {showImport && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+            <div className="bg-card border border-border rounded-2xl w-full max-w-lg shadow-xl space-y-4 p-6">
+              <h3 className="text-base font-bold text-foreground">Importar atendimento anterior</h3>
+              <textarea
+                rows={8}
+                className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-xs text-foreground font-mono leading-relaxed focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
+                placeholder="Cole aqui o texto do prontuário anterior..."
+                value={data.importadoTexto}
+                onChange={e => set("importadoTexto", e.target.value)}
+              />
+              <div className="flex gap-3 justify-end">
+                <button
+                  type="button"
+                  onClick={() => setShowImport(false)}
+                  className="px-4 py-2 rounded-xl border border-border text-sm text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowImport(false)}
+                  className="px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors"
+                >
+                  Salvar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -1527,6 +1704,22 @@ export default function NovaConsultaPage() {
 
         <Block title="Observações adicionais da HPMA">
           <TextInput label="Campo livre" value={data.hpmaLivre} onChange={v => set("hpmaLivre", v)} placeholder="Informações relevantes não cobertas acima..." rows={3} />
+        </Block>
+
+        <Block title="Neurodesenvolvimento (TEA / TDAH / DI)">
+          <p className="text-[11px] text-muted-foreground">Selecione características do neurodesenvolvimento relevantes ao caso.</p>
+          <div className="space-y-4">
+            {NEURODEV_DOMINIOS.map(dom => (
+              <div key={dom.id} className="space-y-2">
+                <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">{dom.label}</p>
+                <div className="flex flex-wrap gap-2">
+                  {dom.opcoes.map(o => (
+                    <Chip key={o} label={o} active={(data.neurodev[dom.id] || []).includes(o)} onClick={() => toggleSels("neurodev", dom.id, o)} />
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
         </Block>
       </div>
     );
@@ -1751,6 +1944,23 @@ export default function NovaConsultaPage() {
   function renderConduta() {
     return (
       <div className="space-y-4">
+        <Block title="Texto-base de conduta">
+          <div className="flex flex-wrap gap-2">
+            {[
+              { v: "", l: "Não usar" },
+              { v: "completo", l: "Completo" },
+              { v: "simplificado", l: "Simplificado" },
+            ].map(opt => (
+              <Chip key={opt.v} label={opt.l} active={data.condutaBase === opt.v} onClick={() => set("condutaBase", opt.v)} />
+            ))}
+          </div>
+          {data.condutaBase !== "" && (
+            <div className="mt-2 bg-muted/40 border border-border rounded-xl px-3.5 py-3 text-[11px] text-muted-foreground leading-relaxed">
+              {data.condutaBase === "completo" ? CONDUTA_BASE_COMPLETO : CONDUTA_BASE_SIMPLIFICADO}
+            </div>
+          )}
+        </Block>
+
         <Block title="Farmacoterapia">
           <TextInput label="Prescrição / ajuste medicamentoso" value={data.condutaFarma} onChange={v => set("condutaFarma", v)} placeholder="Ex: Iniciar sertralina 50mg 1x/dia pela manhã. Quetiapina 25mg à noite para sono." rows={3} />
         </Block>
@@ -2167,6 +2377,31 @@ export default function NovaConsultaPage() {
           </div>
         )}
 
+        {/* Atendimento anterior importado de referência */}
+        {data.importadoTexto && (
+          <div className="bg-card border border-border rounded-2xl overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setImportedPanelOpen(v => !v)}
+              className="w-full flex items-center gap-3 px-5 py-3.5 hover:bg-muted/20 transition-colors text-left"
+            >
+              <FileText size={14} className="text-blue-500 shrink-0" />
+              <div className="flex-1">
+                <p className="text-xs font-bold text-foreground">Atendimento anterior importado</p>
+                <p className="text-[11px] text-muted-foreground">Texto colado para referência</p>
+              </div>
+              {importedPanelOpen ? <ChevronUp size={14} className="text-muted-foreground" /> : <ChevronDown size={14} className="text-muted-foreground" />}
+            </button>
+            {importedPanelOpen && (
+              <div className="border-t border-border p-5">
+                <pre className="text-[11px] text-foreground whitespace-pre-wrap font-sans bg-muted/30 border border-border rounded-xl px-3 py-2 leading-relaxed max-h-48 overflow-y-auto">
+                  {data.importadoTexto}
+                </pre>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Consulta anterior de referência */}
         {prevState && (
           <div className="bg-card border border-border rounded-2xl overflow-hidden">
@@ -2207,6 +2442,21 @@ export default function NovaConsultaPage() {
             )}
           </div>
         )}
+
+        <Block title="Formato da HPMA">
+          <div className="flex flex-wrap gap-2">
+            <Chip label="Tópicos" active={data.hpmaView === "topicos"} onClick={() => set("hpmaView", "topicos")} />
+            <Chip label="Texto corrido" active={data.hpmaView === "corrido"} onClick={() => set("hpmaView", "corrido")} />
+          </div>
+        </Block>
+
+        <Block title="Realce de alterações clínicas">
+          <div className="flex flex-wrap gap-2">
+            <Chip label="Negrito (**texto**)" active={data.realce === "negrito"} onClick={() => set("realce", "negrito")} />
+            <Chip label="CAPS LOCK" active={data.realce === "caps"} onClick={() => set("realce", "caps")} />
+            <Chip label="Sem realce" active={data.realce === "nao"} onClick={() => set("realce", "nao")} />
+          </div>
+        </Block>
 
         <Block title="Escolha o layout do prontuário">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -2261,13 +2511,37 @@ export default function NovaConsultaPage() {
               <span className="text-sm font-bold text-foreground">Prontuário-base</span>
               <span className="text-xs text-muted-foreground">Revise e edite antes de confirmar</span>
             </div>
-            <div className="p-5">
+            <div className="p-5 space-y-4">
               <textarea
                 rows={20}
                 className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-xs text-foreground font-mono leading-relaxed focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
                 value={data.prontuarioBase}
                 onChange={e => set("prontuarioBase", e.target.value)}
               />
+              {data.realce === "negrito" && (
+                <div className="space-y-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowPreviewRealce(v => !v)}
+                    className="flex items-center gap-2 text-xs font-medium text-primary hover:text-primary/80 transition-colors"
+                  >
+                    <Star size={12} />
+                    {showPreviewRealce ? "Ocultar preview com realce" : "Preview com realce"}
+                  </button>
+                  {showPreviewRealce && (
+                    <div
+                      className="bg-background border border-border rounded-xl px-3.5 py-3 text-xs text-foreground leading-relaxed whitespace-pre-wrap"
+                      dangerouslySetInnerHTML={{
+                        __html: data.prontuarioBase
+                          .replace(/&/g, "&amp;")
+                          .replace(/</g, "&lt;")
+                          .replace(/>/g, "&gt;")
+                          .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>"),
+                      }}
+                    />
+                  )}
+                </div>
+              )}
             </div>
             <div className="px-5 pb-5">
               <button
