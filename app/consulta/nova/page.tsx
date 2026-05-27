@@ -71,6 +71,9 @@ interface ConsultaState {
   realce: string;
   neurodev: Sels;
   importadoTexto: string;
+  outputLevel: string;
+  condutaFormat: string;
+  omitirVazias: boolean;
 }
 
 const INITIAL: ConsultaState = {
@@ -85,6 +88,7 @@ const INITIAL: ConsultaState = {
   advancedModules: {}, sintomosAlvo: [], adesao: "", metasRetorno: "", raciocinioCli: "",
   prejuizoFuncional: {}, capacidadeLaboral: {},
   realce: "nao", neurodev: {}, importadoTexto: "",
+  outputLevel: "simplificado", condutaFormat: "numerada", omitirVazias: false,
 };
 
 // ─── Steps ────────────────────────────────────────────────────────────────────
@@ -597,6 +601,193 @@ function tipoLabel(tipo: string) {
   return TIPOS.find(t => t.value === tipo)?.label || tipo;
 }
 
+// ─── Text Quality Utilities ───────────────────────────────────────────────────
+
+// Detects and normalizes all-caps free text to sentence case
+function normalizeCaps(text: string): string {
+  if (!text || text.trim().length < 4) return text;
+  const letters = text.replace(/[^a-zA-ZÀ-ú]/g, "");
+  if (letters.length === 0) return text;
+  const upperCount = letters.split("").filter(c => c === c.toUpperCase() && c !== c.toLowerCase()).length;
+  if (upperCount / letters.length > 0.65) {
+    const lower = text.toLowerCase();
+    return lower.replace(/(^\s*\w|[.!?]\s+\w)/g, c => c.toUpperCase());
+  }
+  return text;
+}
+
+// Builds gender-aware, properly spaced identification text
+function buildIdentTextNorma(d: ConsultaState): string {
+  const sexo = d.ident.sexo || "";
+  const fem = sexo.toLowerCase().includes("fem");
+  const parts: string[] = [];
+  if (d.ident.sexo) parts.push(`Paciente ${fem ? "feminina" : "masculino"}`);
+  else parts.push("Paciente");
+  if (d.ident.idade) parts[0] += `, ${d.ident.idade.trim()} anos`;
+  if (d.ident.naturalidade) parts[0] += `, natural de ${d.ident.naturalidade.trim()}`;
+  if (d.ident.escolaridade) parts[0] += `, ${d.ident.escolaridade.trim()}`;
+  if (d.ident.profissao) parts[0] += `, ${d.ident.profissao.trim()}`;
+  if (d.ident.estadoCivil) parts[0] += `, ${d.ident.estadoCivil.trim()}`;
+  if (d.ident.comQuemMora) parts[0] += `, reside com ${d.ident.comQuemMora.trim()}`;
+  parts[0] += ".";
+  const acomp = d.ident.acompanhante === "sim"
+    ? `Comparece à avaliação acompanhado${fem ? "a" : ""} de familiar.`
+    : `Comparece à avaliação desacompanhad${fem ? "a" : "o"}.`;
+  const conf = d.ident.confiabilidade
+    ? ` com ${d.ident.confiabilidade.toLowerCase()} confiabilidade`
+    : "";
+  const fonte = `Informações obtidas por ${d.ident.fonteInfo || "relato próprio"}${conf}.`;
+  return [parts[0], acomp, fonte].join(" ");
+}
+
+// Builds QP as a clinical sentence
+function buildQPSentence(d: ConsultaState): string {
+  const items = [...d.qp];
+  if (d.qpLivre) items.push(normalizeCaps(d.qpLivre));
+  if (!items.length) return "";
+  const lower = items.map(i => i.charAt(0).toLowerCase() + i.slice(1));
+  let joined: string;
+  if (lower.length === 1) joined = lower[0];
+  else joined = lower.slice(0, -1).join(", ") + " e " + lower[lower.length - 1];
+  return `Paciente refere ${joined}.`;
+}
+
+// Builds risco as a clinical narrative sentence
+function buildRiscoTextNorma(d: ConsultaState): string {
+  const suicida = d.risco["suicida"] || [];
+  const hetero = d.risco["hetero"] || [];
+  const protetores = d.risco["protetores"] || [];
+  const nivel = d.nivelRisco;
+  const parts: string[] = [];
+
+  const negaSuicida = suicida.includes("Nega ideação suicida");
+  const temIdeacao = suicida.some(s => s.includes("Ideação") || s.includes("ideação") || s.includes("plano") || s.includes("intenção"));
+  const temTA = suicida.some(s => s.includes("Tentativa de suicídio recente"));
+  const temTAPrev = suicida.some(s => s.includes("prévia"));
+
+  if (negaSuicida) {
+    parts.push("Nega ideação suicida no momento.");
+  } else if (temIdeacao) {
+    const ideacaoItems = suicida.filter(s => s !== "Nega ideação suicida");
+    parts.push(`Relata ${ideacaoItems.join(", ").toLowerCase()}.`);
+  } else if (suicida.length) {
+    parts.push(`Risco suicida: ${suicida.join(", ").toLowerCase()}.`);
+  }
+
+  if (temTA) parts.push("Refere tentativa de suicídio recente.");
+  if (temTAPrev && !temTA) parts.push("Refere tentativa de suicídio prévia.");
+
+  if (hetero.length && !hetero.includes("Nega ideação heteroagressiva")) {
+    parts.push(`Risco heteroagressivo: ${hetero.join(", ").toLowerCase()}.`);
+  }
+
+  if (protetores.length) {
+    parts.push(`Apresenta fatores protetores, incluindo ${protetores.join(", ").toLowerCase()}.`);
+  }
+
+  if (nivel) {
+    parts.push(`Risco avaliado como ${nivel.toLowerCase()}.`);
+  }
+
+  return parts.join(" ");
+}
+
+// Builds EEM as 2 paragraphs with better phrasing
+function buildEEMTextNorma(eem: Sels, realce: string): string {
+  const GROUP1 = ["aparencia", "atitude", "consciencia", "orientacao"];
+  const GROUP2 = ["atencao", "memoria", "sensopercepcao", "pens-curso", "pens-conteudo", "linguagem", "humor", "afeto", "psicomotricidade", "vontade", "insight"];
+
+  function domainText(id: string): string {
+    const dom = EEM_DOMINIOS.find(d => d.id === id);
+    if (!dom) return "";
+    const sels = eem[id] || [];
+    if (sels.length === 0) return "";
+    if (sels.includes("_normal")) return dom.normal;
+    const opts = sels.map(o => applyRealce(o, realce));
+    switch (id) {
+      case "aparencia": return `Apresenta-se com ${opts.join(", ").toLowerCase()}.`;
+      case "atitude": return `Atitude ${opts.join(", ").toLowerCase()}, com responsividade à entrevista.`;
+      case "consciencia": return `Consciência: ${opts.join(", ").toLowerCase()}.`;
+      case "orientacao": return `${opts.join(", ")}.`;
+      case "atencao": return `Atenção com ${opts.join(", ").toLowerCase()}.`;
+      case "memoria": return `Memória: ${opts.join(", ").toLowerCase()}.`;
+      case "sensopercepcao": return `Sensopercepção: ${opts.join(", ")}.`;
+      case "pens-curso": return `Curso do pensamento: ${opts.join(", ").toLowerCase()}.`;
+      case "pens-conteudo": return `Pensamento com ${opts.join(", ").toLowerCase()}.`;
+      case "linguagem": return `Linguagem: ${opts.join(", ").toLowerCase()}.`;
+      case "humor": return `Humor ${opts.join(", ").toLowerCase()}.`;
+      case "afeto": return `Afeto ${opts.join(", ").toLowerCase()}.`;
+      case "psicomotricidade": return `Psicomotricidade: ${opts.join(", ").toLowerCase()}.`;
+      case "vontade": return `Vontade/pragmatismo: ${opts.join(", ").toLowerCase()}.`;
+      case "insight": return `Juízo crítico/insight: ${opts.join(", ").toLowerCase()}.`;
+      default: return `${dom.label}: ${opts.join(", ")}.`;
+    }
+  }
+
+  const g1parts: string[] = [];
+  const g1allNormal = GROUP1.every(id => {
+    const s = eem[id] || [];
+    return s.length === 0 || s.includes("_normal");
+  });
+  if (g1allNormal && GROUP1.some(id => (eem[id] || []).includes("_normal"))) {
+    g1parts.push("Apresenta-se em bom estado geral, com higiene preservada, vestes adequadas ao contexto e aparência compatível com a idade. Mantém atitude colaborativa, contato interpessoal adequado e boa responsividade à entrevista. Encontra-se vigil, lúcido/a e responsivo/a ao ambiente, orientado/a globalmente em tempo, espaço, pessoa e situação.");
+  } else {
+    for (const id of GROUP1) {
+      const t = domainText(id);
+      if (t) g1parts.push(t);
+    }
+  }
+
+  const g2parts: string[] = [];
+  const g2allNormal = GROUP2.every(id => {
+    const s = eem[id] || [];
+    return s.length === 0 || s.includes("_normal");
+  });
+  if (g2allNormal && GROUP2.some(id => (eem[id] || []).includes("_normal"))) {
+    g2parts.push("Atenção, memória e sensopercepção preservadas. Pensamento com curso organizado e encadeamento lógico preservado, sem ideias delirantes, obsessivas ou supervalorizadas evidentes. Linguagem fluente, coerente e adequada. Humor eutímico, afeto congruente, com amplitude e modulação preservadas. Psicomotricidade preservada. Vontade, pragmatismo e autocuidado preservados. Juízo crítico preservado e insight adequado.");
+  } else {
+    for (const id of GROUP2) {
+      const t = domainText(id);
+      if (t) g2parts.push(t);
+    }
+  }
+
+  const p1 = g1parts.join(" ");
+  const p2 = g2parts.join(" ");
+  const extra = (eem["_livre"] || []).join(" ") || "";
+  return [p1, p2, extra].filter(Boolean).join("\n\n");
+}
+
+// Builds conduta as numbered or narrative format
+function buildCondutaEstruturada(d: ConsultaState, condutaLines: string[]): string {
+  if (!condutaLines.length) return "";
+
+  if (d.condutaFormat === "numerada") {
+    const items: string[] = [];
+    const base = d.condutaBase === "completo" ? CONDUTA_BASE_COMPLETO
+                : d.condutaBase === "simplificado" ? CONDUTA_BASE_SIMPLIFICADO : "";
+    if (base) items.push(base);
+    if (d.condutaFarma) items.push(`Farmacoterapia: ${normalizeCaps(d.condutaFarma)}.`);
+    if (d.condutaPsico.length) items.push(`Psicoterapia: ${d.condutaPsico.join(", ")}.`);
+    if (d.condutaExames.length) items.push(`Exames: ${d.condutaExames.join(", ")}.`);
+    if (d.condutaEncam.length) items.push(`Encaminhamentos: ${d.condutaEncam.join(", ")}.`);
+    if (d.condutaSeguranca.length) items.push(`Plano de segurança: ${d.condutaSeguranca.join(", ")}.`);
+    if (d.condutaRetorno) items.push(`Retorno: ${normalizeCaps(d.condutaRetorno)}.`);
+    if (d.condutaObs) items.push(normalizeCaps(d.condutaObs));
+    return items.map((item, i) => `${i + 1}. ${item}`).join("\n");
+  }
+
+  // Narrative format
+  const basePrefix20Completo = CONDUTA_BASE_COMPLETO.slice(0, 20);
+  const basePrefix20Simples = CONDUTA_BASE_SIMPLIFICADO.slice(0, 20);
+  const specific = condutaLines
+    .filter(l => !l.startsWith(basePrefix20Completo) && !l.startsWith(basePrefix20Simples))
+    .map(l => normalizeCaps(l));
+  const base = condutaLines.find(l => l.startsWith(basePrefix20Completo) || l.startsWith(basePrefix20Simples)) || "";
+  const parts = [base, specific.join(" ")].filter(Boolean);
+  return parts.join("\n\n");
+}
+
 function buildEEMText(eem: Sels): string {
   const lines: string[] = [];
   for (const d of EEM_DOMINIOS) {
@@ -679,7 +870,7 @@ function buildHPMATextCorrido(d: ConsultaState): string {
   if (funcionalidade.length) parts.push(`Do ponto de vista funcional, relata ${funcionalidade.join(", ").toLowerCase()}.`);
   const neuroDevText = buildNeuroDevText(d);
   if (neuroDevText) parts.push(neuroDevText);
-  if (d.hpmaLivre) parts.push(d.hpmaLivre);
+  if (d.hpmaLivre) parts.push(normalizeCaps(d.hpmaLivre));
   return parts.join(" ");
 }
 
@@ -745,7 +936,7 @@ function gerarProntuario(d: ConsultaState): string {
 
   const condutaLines = [
     d.condutaBase === "completo" ? CONDUTA_BASE_COMPLETO : d.condutaBase === "simplificado" ? CONDUTA_BASE_SIMPLIFICADO : "",
-    d.condutaFarma ? `Farmacoterapia: ${d.condutaFarma}.` : "",
+    d.condutaFarma ? `Farmacoterapia: ${normalizeCaps(d.condutaFarma)}.` : "",
     d.condutaPsico.length ? `Psicoterapia: ${d.condutaPsico.join(", ")}.` : "",
     d.condutaExames.length ? `Exames: ${d.condutaExames.join(", ")}.` : "",
     d.condutaEncam.length ? `Encaminhamentos: ${d.condutaEncam.join(", ")}.` : "",
@@ -760,7 +951,7 @@ function gerarProntuario(d: ConsultaState): string {
     d.advancedModules["capacidade-laboral"] && d.capacidadeLaboral["conclusao"]
       ? `Capacidade laboral: ${d.capacidadeLaboral["conclusao"]}${d.capacidadeLaboral["atividade"] ? ` para ${d.capacidadeLaboral["atividade"]}` : ""}${d.capacidadeLaboral["limitacoes"] ? `. Limitações: ${d.capacidadeLaboral["limitacoes"].split("|").join(", ")}` : ""}${d.capacidadeLaboral["prazo"] ? `. Prazo/reavaliação: ${d.capacidadeLaboral["prazo"]}` : ""}.`
       : "",
-    d.condutaObs || "",
+    d.condutaObs ? normalizeCaps(d.condutaObs) : "",
   ].filter(Boolean);
 
   const antPsiDiags = d.antPsi["diagnosticos"] || [];
@@ -780,25 +971,48 @@ function gerarProntuario(d: ConsultaState): string {
 
   // ── Layout: ESTRUTURADO ──────────────────────────────────────────────────────
   if (layout === "estruturado") {
+    const omit = d.omitirVazias;
+    const hpmaEstruturado = buildHPMATextCorrido(d);
+    const eemNorma = buildEEMTextNorma(d.eem, d.realce) + (d.eemLivre ? `\n\n${d.eemLivre}` : "");
+    const riscoNorma = buildRiscoTextNorma(d);
+    const qpNorma = buildQPSentence(d);
+    const identNorma = buildIdentTextNorma(d);
+
+    const condutaFormatada = buildCondutaEstruturada(d, condutaLines);
+
     const sections: string[] = [];
-    if (d.tipo) sections.push(`TIPO DE ATENDIMENTO\n${tipoLabel(d.tipo)}`);
-    if (identText) sections.push(`IDENTIFICAÇÃO\n${identText}`);
-    if (qpText) sections.push(`QP\n${qpText}`);
-    if (hpmaText) sections.push(`HPMA\n${hpmaText}`);
-    if (antPsiText) sections.push(`ANTECEDENTES PSIQUIÁTRICOS\n${antPsiText}`);
-    if (d.ttoPrevio) sections.push(`TTO PRÉVIO\n${d.ttoPrevio}`);
-    const mucLines = [d.muc, d.alergias ? `Alergias: ${d.alergias}` : ""].filter(Boolean);
-    if (mucLines.length) sections.push(`MUC\n${mucLines.join("\n")}`);
-    if (d.antClinico.length) sections.push(`ANTECEDENTES PESSOAIS CLÍNICOS\n${d.antClinico.join(", ")}.`);
-    if (d.antFamiliar.length) sections.push(`ANTECEDENTES FAMILIARES\nRefere história familiar de: ${d.antFamiliar.join(", ")}.`);
-    sections.push(`USO DE SUBSTÂNCIAS\n${substText}`);
-    if (eemText) sections.push(`EXAME DO ESTADO MENTAL\n${eemText}`);
-    if (riscoText) sections.push(`AVALIAÇÃO DE RISCO\n${riscoText}`);
-    if (hdText) sections.push(`HIPÓTESE DIAGNÓSTICA\n${hdText}`);
-    if (d.diferenciais.length) sections.push(`DIAGNÓSTICOS DIFERENCIAIS\n${d.diferenciais.join("\n")}`);
-    if (condutaLines.length) sections.push(`CONDUTA\n${condutaLines.join("\n")}`);
-    if (d.advancedModules["raciocinio-clinico"] && d.raciocinioCli) sections.push(`RACIOCÍNIO CLÍNICO\n${d.raciocinioCli}`);
-    return sections.join("\n\n");
+    if (d.tipo) sections.push(`# TIPO DE ATENDIMENTO\n\n${tipoLabel(d.tipo)}.`);
+    if (identNorma) sections.push(`# IDENTIFICAÇÃO\n\n${identNorma}`);
+    if (qpNorma || !omit) sections.push(`# QP\n\n${qpNorma || "Não informada."}`);
+    if (hpmaEstruturado || !omit) sections.push(`# HPMA\n\n${hpmaEstruturado || "Não informada."}`);
+    if (antPsiText) sections.push(`# ANTECEDENTES PSIQUIÁTRICOS\n\n${antPsiText}`);
+    else if (!omit) sections.push(`# ANTECEDENTES PSIQUIÁTRICOS\n\nNão referidos.`);
+    if (d.ttoPrevio) sections.push(`# TTO PRÉVIO\n\n${normalizeCaps(d.ttoPrevio)}`);
+    else if (!omit) sections.push(`# TTO PRÉVIO\n\nNão informado.`);
+
+    const mucFull = [d.muc ? normalizeCaps(d.muc) : "", d.alergias ? `\n\nAlergias: ${d.alergias.toLowerCase() === "nega" ? "nega" : d.alergias}.` : ""].filter(Boolean).join("");
+    if (mucFull) sections.push(`# MUC\n\n${mucFull}`);
+    else if (!omit) sections.push(`# MUC\n\nNão informado.\n\nAlergias: nega.`);
+
+    if (d.antClinico.length) sections.push(`# ANTECEDENTES PESSOAIS CLÍNICOS\n\n${d.antClinico.join(". ")}.`);
+    if (d.antFamiliar.length) sections.push(`# ANTECEDENTES FAMILIARES\n\nRefere história familiar de: ${d.antFamiliar.join(", ").toLowerCase()}.`);
+    sections.push(`# USO DE SUBSTÂNCIAS\n\n${substText}`);
+    if (eemNorma) sections.push(`# EXAME DO ESTADO MENTAL\n\n${eemNorma}`);
+    else if (!omit) sections.push(`# EXAME DO ESTADO MENTAL\n\nEEM não preenchido.`);
+    if (riscoNorma) sections.push(`# AVALIAÇÃO DE RISCO\n\n${riscoNorma}`);
+    else if (!omit) sections.push(`# AVALIAÇÃO DE RISCO\n\nNão avaliado formalmente.`);
+    if (hdText) sections.push(`# HIPÓTESE DIAGNÓSTICA\n\n${hdText}`);
+    else if (!omit) sections.push(`# HIPÓTESE DIAGNÓSTICA\n\nA definir.`);
+    if (d.diferenciais.length) sections.push(`# DIAGNÓSTICOS DIFERENCIAIS\n\n${d.diferenciais.join("; ")}.`);
+    if (condutaFormatada) sections.push(`# CONDUTA\n\n${condutaFormatada}`);
+    else if (!omit) sections.push(`# CONDUTA\n\nA definir.`);
+    if (d.condutaRetorno && !condutaLines.some(l => l.startsWith("Retorno:"))) {
+      sections.push(`# RETORNO\n\n${normalizeCaps(d.condutaRetorno)}.`);
+    }
+    if (d.advancedModules["raciocinio-clinico"] && d.raciocinioCli) {
+      sections.push(`# RACIOCÍNIO CLÍNICO\n\n${d.raciocinioCli}`);
+    }
+    return sections.join("\n\n---\n\n");
   }
 
   // ── Layout: OBJETIVO ─────────────────────────────────────────────────────────
@@ -1944,6 +2158,13 @@ export default function NovaConsultaPage() {
   function renderConduta() {
     return (
       <div className="space-y-4">
+        <Block title="Formato da conduta">
+          <FieldGroup label="Estilo de saída">
+            <Chip label="Numerada (1. 2. 3.)" active={data.condutaFormat === "numerada"} onClick={() => set("condutaFormat", "numerada")} />
+            <Chip label="Texto corrido" active={data.condutaFormat === "corrida"} onClick={() => set("condutaFormat", "corrida")} />
+          </FieldGroup>
+        </Block>
+
         <Block title="Texto-base de conduta">
           <div className="flex flex-wrap gap-2">
             {[
@@ -2442,6 +2663,22 @@ export default function NovaConsultaPage() {
             )}
           </div>
         )}
+
+        <Block title="Nível de detalhe da saída">
+          <FieldGroup label="Nível">
+            {[
+              { id: "completo", label: "Completo", desc: "Máximo detalhamento — perícia, discussão clínica, caso complexo" },
+              { id: "simplificado", label: "Simplificado", desc: "Padrão ambulatorial — coeso e objetivo" },
+              { id: "enxuto", label: "Enxuto", desc: "Breve — atendimento de alto fluxo, retorno rápido" },
+            ].map(o => (
+              <Chip key={o.id} label={o.label} active={data.outputLevel === o.id} onClick={() => set("outputLevel", o.id)} />
+            ))}
+          </FieldGroup>
+          <div className="flex items-center gap-3">
+            <label className="text-xs text-muted-foreground">Omitir seções vazias</label>
+            <Chip label={data.omitirVazias ? "Sim" : "Não"} active={data.omitirVazias} onClick={() => set("omitirVazias", !data.omitirVazias)} />
+          </div>
+        </Block>
 
         <Block title="Formato da HPMA">
           <div className="flex flex-wrap gap-2">
